@@ -172,6 +172,12 @@ class QnliProcessor(DataProcessor):
       name_a = line[3] # name are not used, but good for debug
       name_b = line[4]
       label = line[-1]
+
+      if 'GO' not in name_a:  ## STRICT ENFORCE GO:XYZ SYNTAX
+        name_a = 'GO:'+name_a
+      if 'GO' not in name_b: 
+        name_b = 'GO:'+name_b
+
       examples.append(
         InputExample(guid=guid, text_a=text_a.lower(), text_b=text_b.lower(), name_a=name_a, name_b=name_b, label=label))
       counter = counter + 1
@@ -302,7 +308,7 @@ def convert_labels_to_features(examples, max_seq_length, tokenizer, all_name_arr
     ## https://github.com/huggingface/pytorch-pretrained-BERT/blob/master/pytorch_pretrained_bert/modeling.py#L715
     # assert len(segment_ids) == max_seq_length
 
-    if ex_index < 5:
+    if ex_index < 3:
       print("\n*** Label Description Example for labels to be classified ***")
       print("guid: %s" % (example.guid))
       if tokenize_style=='bert':
@@ -323,7 +329,7 @@ def convert_labels_to_features(examples, max_seq_length, tokenizer, all_name_arr
 
 def make_label_loader (train_features,batch_size,fp16) :
 
-  # must sort labels as they appear in @label_index_map
+  # must keep labels as they appear in @label_index_map
 
   all_name_ids = [f.input_name for f in train_features] # names as they appear in list
   all_input_ids = torch.tensor([f.input_ids for f in train_features], dtype=torch.long)

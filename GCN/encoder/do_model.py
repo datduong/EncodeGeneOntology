@@ -33,6 +33,7 @@ args = arg_input.get_args()
 
 import GCN.encoder.data_loader as data_loader
 import GCN.encoder.encoder_model as encoder_model
+import GCN.encoder.entailment_model as entailment_model
 
 
 MAX_SEQ_LEN = 256
@@ -64,6 +65,7 @@ if args.w2v_emb is not None: ## we can just treat each node as a vector without 
   Vocab = load_vocab(args.vocab_list) # all words found in pubmed and trained in w2v ... should trim down
   processor = data_loader.LabelProcessor()
   label_desc_examples = processor.get_examples(args.main_dir, all_name_array) ## must get all labels 
+  
   label_desc_features = data_loader.convert_labels_to_features(label_desc_examples,max_seq_length=MAX_SEQ_LEN, tokenizer=Vocab, all_name_array=all_name_array,tokenize_style="space")
 
   if args.batch_size_label_desc == 0: 
@@ -88,7 +90,7 @@ num_labels = len(label_list) ## no/yes entailment style, not the total # node la
 
 if args.test_file is None: 
 
-  all_name_array = [ re.sub(r"GO:","",g) for g in all_name_array ]
+  # all_name_array = [ re.sub(r"GO:","",g) for g in all_name_array ]
 
   ## get label-label entailment data
   train_label_examples = processor.get_train_examples(args.qnli_dir,"train"+"_"+args.metric_option+".tsv")
@@ -126,10 +128,13 @@ if args.w2v_emb is not None:
 
 # cosine model
 # **** in using cosine model, we are not using the training sample A->B then B not-> A
-
 cosine_loss = encoder_model.cosine_distance_loss(args.gcnn_dim,args.gcnn_dim, args)
 
-metric_pass_to_joint_model = {'entailment':None, 'cosine':cosine_loss}
+# entailment model
+ent_model = entailment_model.entailment_model (num_labels,args.gcnn_dim,args.def_emb_dim,weight=torch.FloatTensor([1.5,.75])) # torch.FloatTensor([1.5,.75])
+
+
+metric_pass_to_joint_model = {'entailment':ent_model, 'cosine':cosine_loss}
 
 ## make GCN model
 

@@ -114,6 +114,8 @@ class encoder_model (nn.Module) :
 
     self.nonlinear_gcnn = kwargs['nonlinear_gcnn']
 
+    self.dropout = nn.Dropout (kwargs['dropout'])
+
     self.optimizer = None
 
   # def do_gcn(self,input_idx,edge_index): ## @input_idx is simple label indexing [0 10 5] = take in label #0 #10 #5
@@ -122,7 +124,7 @@ class encoder_model (nn.Module) :
 
   def gcn_2layer (self,labeldesc_loader,edge_index):
 
-    node_emb = self.nonlinear_gcnn ( self.gcn1.forward (self.label_embedding.weight, edge_index) ) ## take in entire label space at once
+    node_emb = self.nonlinear_gcnn ( self.gcn1.forward ( self.dropout ( self.label_embedding.weight ), edge_index) ) ## take in entire label space at once
     return self.gcn2.forward (node_emb, edge_index) ## not relu or tanh in last layer
 
   def make_optimizer (self):
@@ -172,8 +174,8 @@ class encoder_model (nn.Module) :
       print ("\ntrain epoch {} loss {}".format(epoch,tr_loss))
 
       # eval at each epoch
-      print ('\neval on train data epoch {}'.format(epoch))
-      result, _ , _ = self.do_eval(train_dataloader,labeldesc_loader,edge_index)
+      # print ('\neval on train data epoch {}'.format(epoch))
+      # result, _ , _ = self.do_eval(train_dataloader,labeldesc_loader,edge_index)
 
       print ('\neval on dev data epoch {}'.format(epoch))
       result, preds, dev_loss = self.do_eval(dev_dataloader,labeldesc_loader,edge_index)
@@ -234,17 +236,17 @@ class encoder_model (nn.Module) :
     all_label_ids = all_label_ids[0]
     preds = preds[0]
 
+    if self.metric_option == 'entailment':
+      preds = softmax(preds, axis=1) ## softmax, return both prob of 0 and 1 for each label
+
     print (preds)
     print (all_label_ids)
 
     result = 0
     if self.args.test_file is None: ## save some time
-      result = acc_and_f1(preds, all_label_ids, self.metric_option)
+      result = acc_and_f1(preds, all_label_ids, self.metric_option) ## interally, we will take care of the case of @entailment vs @cosine
       for key in sorted(result.keys()):
         print("%s=%s" % (key, str(result[key])))
-
-    if self.metric_option == 'entailment':
-      preds = softmax(preds, axis=1) ## softmax
 
     return result, preds, tr_loss
 

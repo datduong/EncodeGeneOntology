@@ -127,8 +127,8 @@ def get_args():
   parser.add_argument("--do_lower_case", action="store_true")
   parser.add_argument("--reduce_memory", action="store_true",
                       help="Store training data as on-disc memmaps to massively reduce memory usage")
-  parser.add_argument('--pregenerated_data', type=Path, required=True)
-  parser.add_argument('--bert_output_dir', type=Path, required=True)
+  parser.add_argument('--pregenerated_data', type=Path)
+  parser.add_argument('--bert_output_dir', type=Path)
   parser.add_argument('--write_vector', action='store_true',
                       help='write_vector of label emb')
   parser.add_argument('--label_desc_dir', type=str, default=None,

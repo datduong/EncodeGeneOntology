@@ -7,7 +7,10 @@ from tqdm import tqdm
 
 from pytorch_pretrained_bert.tokenization import BertTokenizer, load_vocab, whitespace_tokenize
 
-main_dir = '/u/scratch/d/datduong/goAndGeneAnnotationDec2018/'
+# main_dir = '/u/scratch/d/datduong/goAndGeneAnnotationDec2018/'
+# main_dir = '/u/scratch/d/datduong/goAndGeneAnnotationMar2017/'
+main_dir = '/u/scratch/d/datduong/deepgo/data/'
+
 os.chdir(main_dir)
 
 ## we have already did this before. just need to load the words back
