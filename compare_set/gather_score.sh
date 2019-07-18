@@ -8,24 +8,26 @@ cd /u/scratch/d/datduong/GOmultitask/compare_set
 gapSize=300
 server='/u/scratch/d/datduong'
 
-dataDir=$server/'geneOrtholog/HumanMouseScore/qnliFormat'
-
-# finalDir=$server/'geneOrtholog/HumanMouseScore/qnliFormat/GcnRelu300Cosine'
-
-finalDir=$server/'geneOrtholog/HumanMouseScore/qnliFormat/cosine.768.reduce300ClsVec'
+pair='FlyWorm'
+dataDir=$server/'geneOrtholog/'$pair'Score/qnliFormatData17'
 
 
-# 22800
-for point in {0..22500..300}
-do 
+for output in cosine.768.reduce300ClsVec ; do # cosine.768.reduce300ClsVec GcnRelu300Cosine cosine.bilstm.300Vec 
 
-echo $point
-scoreFile=$finalDir/'score.'$point'.txt'
-nameOut=$finalDir/'finalscore.'$point'.txt'
-pickleDf=$dataDir/'GeneDict2test.'$point'.pickle'
-# pickleDf,scoreFile,nameOut,start
-python3 gather_score.py $pickleDf $scoreFile $nameOut $point
+  finalDir=$server/'geneOrtholog/'$pair'Score/qnliFormatData17/'$output
+
+  for point in {0..3600..300}
+  do 
+
+    echo $point
+    scoreFile=$finalDir/'score.'$point'.txt'
+    nameOut=$finalDir/'finalscore.'$point'.txt'
+    pickleDf=$dataDir/'GeneDict2test.'$point'.pickle'
+    # pickleDf,scoreFile,nameOut,start
+    python3 gather_score.py $pickleDf $scoreFile $nameOut $point
+
+  done
+  cat $finalDir/finalscore*.txt > $finalDir/'GeneScore.txt'
 
 done
 
-cat $finalDir/finalscore*.txt > $finalDir/'GeneScore.txt'
