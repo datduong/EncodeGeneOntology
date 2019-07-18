@@ -14,7 +14,12 @@ import obonet
 
 ## using the COO format of sklearn 
 
-work_dir = '/u/flashscratch/d/datduong/goAndGeneAnnotationDec2018/'
+## deepgo/data/train
+
+# work_dir = '/u/flashscratch/d/datduong/goAndGeneAnnotationDec2018/'
+# work_dir = '/u/flashscratch/d/datduong/goAndGeneAnnotation/'
+work_dir = '/u/flashscratch/d/datduong/deepgo/data/'
+
 os.chdir (work_dir)
 
 # Read the taxrank ontology
@@ -50,10 +55,13 @@ pd.DataFrame(go_name_array_obo).to_csv("go_name_in_obo.csv", header=None, index=
 # is_a: GO:0048308 ! organelle inheritance
 # is_a: GO:0048311 ! mitochondrion distribution
 
-fout = open ("go_def_in_obo.csv","w")
+fout = open ("go_def_in_obo.tsv","w")
 fout.write("name\tdef")
 for node_name in go_name_array_obo: 
-  defin = graph.node[node_name]['name'] + " " + graph.node[node_name]['def'].split('"')[1] # split by quote, take 2nd entry
+  node_def = graph.node[node_name]['def'].split('"')[1] # split by quote, take 2nd entry
+  defin = graph.node[node_name]['name'] + " " + node_def
+  defin = re.sub(r"[\n\t]", " ", defin)
+  defin = defin.strip() 
   fout.write("\n"+node_name + "\t" + defin.lower())
 
 
