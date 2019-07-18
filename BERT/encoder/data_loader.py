@@ -6,7 +6,7 @@
 
 from __future__ import absolute_import, division, print_function
 
-import argparse, csv, logging, os, random, sys, pickle, gzip
+import argparse, csv, logging, os, random, sys, pickle, gzip, re
 import numpy as np
 
 import torch
@@ -169,20 +169,35 @@ class QnliProcessor(DataProcessor):
       name_a = line[3] # name are not used, but good for debug
       name_b = line[4]
       label = line[-1]
+
+      if 'GO' not in name_a:  ## STRICT ENFORCE GO:XYZ SYNTAX
+        name_a = 'GO:'+name_a
+      if 'GO' not in name_b: 
+        name_b = 'GO:'+name_b
+
       examples.append(
         InputExample(guid=guid, text_a=text_a.lower(), text_b=text_b.lower(), name_a=name_a, name_b=name_b, label=label))
       counter = counter + 1
     return examples
 
 
-def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer, do_bert_tok=True):
+def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer, do_bert_tok=True, all_name_array=None):
   """Loads a data file into a list of `InputBatch`s."""
 
   label_map = {label : i for i, label in enumerate(label_list)}
 
+  # if all_name_array is not None: 
+  #   all_name_array = [ re.sub("GO:","",g) for g in all_name_array ] ## the train.csv doesn't use the GO:xyz syntax
+
   features = []
 
   for (ex_index, example) in tqdm(enumerate(examples)):
+
+    ## label
+    try: ## some terms have changed, legacy input file
+      input_pos=[all_name_array.index(example.name_a), all_name_array.index(example.name_b)]
+    except:
+      continue
 
     input_1_ids, input_1_len = bert_tokenizer_style(tokenizer, example.text_a, add_cls_sep=True)
     # The mask has 1 for real tokens and 0 for padding tokens. Only real

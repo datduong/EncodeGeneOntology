@@ -147,8 +147,8 @@ def simple_accuracy(preds, labels):
 
 def acc_and_f1(preds, labels, metric_option):
   if metric_option == 'entailment':
-    preds = np.argmax(preds, axis=1)
-  
+    preds = np.argmax(preds, axis=1) ## return the index of the best values
+
   if metric_option == 'cosine':
     preds[preds<=0] = -1 # rounding at 0
     preds[preds>0] = 1
@@ -332,8 +332,8 @@ class encoder_model (nn.Module) :
       self.bert_lm_sentence.eval()
       self.metric_module.eval()
 
-      print ('\neval on train data inner epoch {}'.format(epoch))
-      result, preds = self.eval_label(train_dataloader)
+      # print ('\neval on train data inner epoch {}'.format(epoch)) ## too slow, takes 5 mins, we should just skip
+      # result, preds = self.eval_label(train_dataloader)
 
       print ('\neval on dev data inner epoch {}'.format(epoch))
       result, preds = self.eval_label(dev_dataloader)
@@ -384,8 +384,8 @@ class encoder_model (nn.Module) :
         loss , prob = self.metric_module.forward(label_emb1, label_emb2, true_label=label_ids)
 
       if len(preds) == 0:
-          preds.append(prob.detach().cpu().numpy())
-          all_label_ids.append(label_ids.detach().cpu().numpy())
+        preds.append(prob.detach().cpu().numpy())
+        all_label_ids.append(label_ids.detach().cpu().numpy())
       else:
         preds[0] = np.append(preds[0], prob.detach().cpu().numpy(), axis=0)
         all_label_ids[0] = np.append(all_label_ids[0], label_ids.detach().cpu().numpy(), axis=0) # row array
@@ -394,18 +394,17 @@ class encoder_model (nn.Module) :
     all_label_ids = all_label_ids[0]
     preds = preds[0]
 
+    if self.metric_option == 'entailment':
+      preds = softmax(preds, axis=1) ## softmax, return both prob of 0 and 1 for each label
+
     print (preds)
     print (all_label_ids)
-    
+
     result = 0
     if self.args.test_file is None: ## save some time
-      result = acc_and_f1(preds, all_label_ids, self.metric_option)
+      result = acc_and_f1(preds, all_label_ids, self.metric_option) ## interally, we will take care of the case of @entailment vs @cosine
       for key in sorted(result.keys()):
         print("%s=%s" % (key, str(result[key])))
-    
-
-    if self.metric_option == 'entailment':
-      preds = softmax(preds, axis=1) ## softmax 
 
     return result, preds
 
@@ -507,7 +506,10 @@ class encoder_model (nn.Module) :
     self.bert_lm_sentence.eval()
     self.metric_module.eval()
 
-    fout = open(fout_name,'w')
+    if fout_name is not None:
+      fout = open(fout_name,'w')
+
+    label_emb = None
 
     counter = 0 ## count the label to be written
     for step, batch in enumerate(tqdm(label_desc_loader, desc="write label desc")):
@@ -526,11 +528,23 @@ class encoder_model (nn.Module) :
           label_emb1 = self.metric_module.reduce_vec_dim(label_emb1)
 
       label_emb1 = label_emb1.detach().cpu().numpy()
-      for row in range ( label_emb1.shape[0] ) :
-        fout.write( label_name[counter] + "\t" + "\t".join(str(m) for m in label_emb1[row]) + "\n" )
-        counter = counter + 1
 
-    fout.close()
+      if fout_name is not None:
+        for row in range ( label_emb1.shape[0] ) :
+          fout.write( label_name[counter] + "\t" + "\t".join(str(m) for m in label_emb1[row]) + "\n" )
+          counter = counter + 1
+
+      if label_emb is None:
+        label_emb = label_emb1
+      else:
+        label_emb = np.concatenate((label_emb, label_emb1), axis=0) ## so that we have num_go x dim
+
+    if fout_name is not None:
+      fout.close()
+
+    return label_emb
+
+
 
 
 

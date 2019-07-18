@@ -4,6 +4,7 @@ from __future__ import absolute_import, division, print_function
 import argparse,csv,logging,os,random,sys, pickle, gzip
 import numpy as np
 import json
+import pandas as pd 
 
 import torch
 import torch.nn as nn
@@ -40,6 +41,14 @@ import BERT.encoder.encoder_model as encoder_model
 
 MAX_SEQ_LEN = 512
 
+
+## MUST READ IN WHAT ARE THE GO TERMS TO BE USED. 
+os.chdir(args.main_dir)
+all_name_array = pd.read_csv("go_name_in_obo.csv", header=None)
+all_name_array = list (all_name_array[0])
+print ('loading in go terms found in go.obo, terms count {}'.format(len(all_name_array)))
+
+
 # use BERT tokenizer
 tokenizer = BertTokenizer.from_pretrained('bert-base-cased', do_lower_case=True) # args.do_lower_case args.bert_tokenizer
 
@@ -58,9 +67,10 @@ num_labels = len(label_list)
 #   train_label_dataloader = torch.load( os.path.join(args.qnli_dir,"train_label_dataloader"+name_add_on+".pytorch") )
 # except:
 
-if args.test_file is None: 
+if args.test_file is None: ## so we do training because test file not given
+
   train_label_examples = processor.get_train_examples(args.qnli_dir,"train"+"_"+args.metric_option+".tsv")
-  train_label_features = data_loader.convert_examples_to_features(train_label_examples, label_list, MAX_SEQ_LEN, tokenizer, "classification")
+  train_label_features = data_loader.convert_examples_to_features(train_label_examples, label_list, MAX_SEQ_LEN, tokenizer, "classification",all_name_array)
   train_label_dataloader = data_loader.make_data_loader (train_label_features,batch_size=args.batch_size_label,fp16=args.fp16, sampler='random',metric_option=args.metric_option)
   print ('\ntrain_label_examples {}'.format(len(train_label_examples))) # train_label_examples 35776
 
@@ -70,7 +80,7 @@ if args.test_file is None:
   # get label-label entailment data
   processor = data_loader.QnliProcessor()
   dev_label_examples = processor.get_dev_examples(args.qnli_dir,"dev"+"_"+args.metric_option+".tsv")
-  dev_label_features = data_loader.convert_examples_to_features(dev_label_examples, label_list, MAX_SEQ_LEN, tokenizer, "classification")
+  dev_label_features = data_loader.convert_examples_to_features(dev_label_examples, label_list, MAX_SEQ_LEN, tokenizer, "classification",all_name_array)
   dev_label_dataloader = data_loader.make_data_loader (dev_label_features,batch_size=args.batch_size_label-2,fp16=args.fp16, sampler='sequential',metric_option=args.metric_option)
   # torch.save( dev_label_dataloader, os.path.join( args.qnli_dir, "dev_label_dataloader"+name_add_on+".pytorch") )
   print ('\ndev_label_examples {}'.format(len(dev_label_examples))) # dev_label_examples 7661
@@ -91,7 +101,7 @@ if args.fp16:
 
 
 # entailment model
-ent_model = entailment_model.entailment_model (num_labels,bert_config.hidden_size,args.def_emb_dim,neighbor_dim=0,do_neighbor=False,weight=None) # torch.FloatTensor([1.5,.75])
+ent_model = entailment_model.entailment_model (num_labels,bert_config.hidden_size,args.def_emb_dim,weight=torch.FloatTensor([1.5,.75])) # torch.FloatTensor([1.5,.75])
 
 # cosine model
 # **** in using cosine model, we are not using the training sample A->B then B not-> A
@@ -206,6 +216,7 @@ if args.model_load is not None :
 
 #   exit() 
 
+print (bert_lm_ent_model)
 
 ## **** train
 
@@ -250,7 +261,7 @@ if args.test_file is None:
 print ('\n\ntest file name{}'.format(args.test_file))
 
 dev_label_examples = processor.get_test_examples(args.test_file)
-dev_label_features = data_loader.convert_examples_to_features(dev_label_examples, label_list, MAX_SEQ_LEN, tokenizer, "classification")
+dev_label_features = data_loader.convert_examples_to_features(dev_label_examples, label_list, MAX_SEQ_LEN, tokenizer, "classification",all_name_array)
 dev_label_dataloader = data_loader.make_data_loader (dev_label_features,batch_size=args.batch_size_label,fp16=args.fp16, sampler='sequential',metric_option=args.metric_option)
 torch.save( dev_label_dataloader, os.path.join( args.qnli_dir, "test_label_dataloader"+name_add_on+".pytorch") )
 print ('\ntest_label_examples {}'.format(len(dev_label_examples))) # dev_label_examples 7661
