@@ -145,6 +145,13 @@ class ProtSeq2GOBase (nn.Module):
     self.classify_loss = nn.BCEWithLogitsLoss()
     # self.classify_loss = nn.BCELoss()
 
+    print ('\noptim function : {}'.format(args.optim_choice))
+    if args.optim_choice == 'SGD':
+      self.optim_choice = torch.optim.SGD
+    if args.optim_choice == 'Adam':
+      self.optim_choice = torch.optim.Adam
+    if args.optim_choice == 'RMSprop':
+      self.optim_choice = torch.optim.RMSprop
 
   def maxpool_prot_emb (self,prot_idx,mask):
     pass
@@ -157,13 +164,17 @@ class ProtSeq2GOBase (nn.Module):
 
   def make_optimizer (self):
     if self.args.fix_prot_emb:
-      return torch.optim.SGD ( [p for n,p in self.named_parameters() if "ProtEncoder" not in n] , lr=self.args.lr, momentum=0.9) #  , momentum=0.9
+      param_list = [(n,p) for n,p in self.named_parameters() if "ProtEncoder" not in n]
 
     else:
-      print ("\n\nparams to train")
-      for n,p in self.named_parameters():
-        print (n)
-      return torch.optim.SGD ( self.parameters(), lr=self.args.lr, momentum=0.9 ) # , momentum=0.9
+      param_list = [(n,p) for n,p in self.named_parameters()]
+
+    print ("\n\nparams to train")
+    for n,p in param_list:
+      if p.requires_grad : print (n)
+
+    return self.optim_choice ( [p for n,p in param_list], lr=self.args.lr ) # , momentum=0.9
+
 
   def do_train(self, prot_loader, prot_dev_loader, **kwargs):
     torch.cuda.empty_cache()
@@ -200,7 +211,7 @@ class ProtSeq2GOBase (nn.Module):
 
         # loss = self.classify_loss ( pred, label_ids.cuda() )
 
-        loss.backward() ## we will later define what is @loss, so for base class, we will see error. 
+        loss.backward() ## we will later define what is @loss, so for base class, we will see error.
         optimizer.step()
         optimizer.zero_grad()
 
@@ -223,17 +234,17 @@ class ProtSeq2GOBase (nn.Module):
         last_best_epoch = epoch
 
       else:
-        if (epoch > 20) : ## don't decrease too quickly and too early, wait for later epoch
+        if (epoch > 10) : ## don't decrease too quickly and too early, wait for later epoch
           for g in optimizer.param_groups:
             g['lr'] = g['lr'] * 0.8 ## update lr rate for next epoch
 
-      if epoch - last_best_epoch > 25:
+      if epoch - last_best_epoch > 20:
         print ('\n\n\n**** break early \n\n\n')
         print ("save last")
         torch.save(self.state_dict(), os.path.join(self.args.result_folder,"last_state_dict.pytorch"))
         return tr_loss
 
-    print ("save last {}")
+    print ("save last")
     torch.save(self.state_dict(), os.path.join(self.args.result_folder,"last_state_dict.pytorch"))
     return tr_loss ## last train loss
 
@@ -364,10 +375,10 @@ class DeepGOTreeSeqProt (DeepGOTreeSeqOnly):
 
     self.LinearRegression = nn.Linear( args.go_vec_dim + args.prot_vec_dim + args.prot_interact_vec_dim, args.num_label_to_test ) ## 3 items, go vec, prot vec by some encoder, and prot vec made by some interaction network
     xavier_uniform_(self.LinearRegression.weight)
-  
+
   def forward( self, prot_idx, mask, prot_interact_emb, label_ids, **kwargs ): ## @go_emb should be joint train?
     prot_emb = self.ProtEncoder ( prot_idx, **kwargs )
-    prot_emb = torch.cat ( (prot_emb , prot_interact_emb) , dim=1 ) 
+    prot_emb = torch.cat ( (prot_emb , prot_interact_emb) , dim=1 )
     pred = self.match_prob ( prot_emb )
     pred = F.sigmoid(pred) ## size batch x all_terms_in_ontology because for 1 node, we need to get all its children. we can do careful selection later to save gpu memmory
     pred = self.maxpoolNodeLayer.forward ( pred )
@@ -403,13 +414,24 @@ class DeepGOFlatSeqProtHwayGo (DeepGOFlatSeqProt):
     xavier_uniform_(self.LinearRegression.weight)
 
   def make_optimizer (self):
-    if self.args.fix_go_emb:
-      return torch.optim.SGD ( [p for n,p in self.named_parameters () if "GOEncoder" not in n] , lr=self.args.lr, momentum=0.9 ) # , momentum=0.9
+
+    if self.args.fix_prot_emb and (not self.args.fix_go_emb):
+      param_list = [(n,p) for n,p in self.named_parameters() if "ProtEncoder" not in n]
+
+    elif self.args.fix_prot_emb and self.args.fix_go_emb:
+      param_list = [(n,p) for n,p in self.named_parameters() if ("ProtEncoder" not in n) or ("GOEncoder" not in n)]
+
+    elif (not self.args.fix_prot_emb) and self.args.fix_go_emb:
+      param_list = [(n,p) for n,p in self.named_parameters() if "GOEncoder" not in n]
+
     else:
-      print ("\n\nparams to train")
-      for n,p in self.named_parameters():
-        print (n)
-      return torch.optim.SGD ( self.parameters(), lr=self.args.lr, momentum=0.9 ) # , momentum=0.9
+      param_list = [(n,p) for n,p in self.named_parameters()]
+
+    print ("\n\nparams to train")
+    for n,p in param_list:
+      if p.requires_grad : print (n)
+
+    return self.optim_choice ( [p for n,p in param_list], lr=self.args.lr ) # , momentum=0.9
 
   def concat_prot_go (self, prot_emb, go_emb):
 
@@ -437,8 +459,13 @@ class DeepGOFlatSeqProtHwayGo (DeepGOFlatSeqProt):
     # go_emb will be computed each time. so it's costly ?
 
     ## Because of GCN, GO vectors not in subset will influence GO vectors inside subset, so we have to run GCN on the whole graph ? ... probably yes
-    go_emb = self.GOEncoder.gcn_2layer(kwargs['labeldesc_loader'],kwargs['edge_index']) ## go_emb is num_go x dim
-    go_emb = F.normalize(go_emb,dim=1) ## go emb were trained based on cosine, so we have norm to length=1, this normalization will get similar GO to have truly similar vectors.
+    ## **** TO SAVE SOME TIME, IF WE DON'T UPDATE LABEL DESCRIPTION, WE CAN COMPUTE IT AHEAD OF TIME.
+    # if self.args.fix_go_emb:
+    go_emb = kwargs['go_emb']
+    
+    # else:
+    #   go_emb = self.GOEncoder.gcn_2layer(kwargs['labeldesc_loader'],kwargs['edge_index']) ## go_emb is num_go x dim
+    #   go_emb = F.normalize(go_emb,dim=1) ## go emb were trained based on cosine, so we have norm to length=1, this normalization will get similar GO to have truly similar vectors.
 
     # prot_emb is usually fast, because we don't update it ? must update if we use deepgo approach
     prot_emb = self.ProtEncoder ( prot_idx, **kwargs ) ## output is batch x dim if we use deepgo. possible we need to change later.
@@ -447,14 +474,11 @@ class DeepGOFlatSeqProtHwayGo (DeepGOFlatSeqProt):
     prot_emb = torch.cat ( (prot_emb, prot_interact_emb) , dim=1 ) ## append to known ppi-network
 
     ## somehow ... account for the GO vectors
+    ## highway network for @prot_emb_concat
+  
     ## testing on subset, so we call kwargs['label_to_test_index']
+    ## if we don't care about using graph/ or children terms, then @label_to_test_index should be just simple index 0,1,2,3,....
     prot_go_vec = self.concat_prot_go ( prot_emb, go_emb[kwargs['label_to_test_index']] ) ## output shape batch x num_go x dim
-
-    # ## highway network for @prot_emb_concat
-    # prot_emb = prot_emb.unsqueeze(1) ## make into 3D : batch x 1 x dim
-    # prot_emb = prot_emb.expand( -1, self.args.num_label_to_test, -1) ## output shape batch x num_go x dim
-
-    # prot_emb_concat = torch.cat ( (prot_emb , prot_go_vec) , dim=2 ) ## append to f(prot_emb,go_emb)
 
     ## testing on subset
     pred = self.LinearRegression.weight.mul(prot_go_vec).sum(2) + self.LinearRegression.bias ## dot-product sum up
@@ -514,16 +538,16 @@ class DeepGOTreeSeqProtHwayGo (DeepGOFlatSeqProtHwayGo):
     # go_emb will be computed each time. so it's costly ?
 
     ## **** TO SAVE SOME TIME, IF WE DON'T UPDATE LABEL DESCRIPTION, WE CAN COMPUTE IT AHEAD OF TIME.
-    if self.args.fix_go_emb:
-      go_emb = kwargs['go_emb']
-    else:
-      ## Because of GCN, GO vectors not in subset will influence GO vectors inside subset, so we have to run GCN on the whole graph ? ... probably yes
-      go_emb = self.GOEncoder.gcn_2layer(kwargs['labeldesc_loader'],kwargs['edge_index']) ## go_emb is num_go x dim
-      go_emb = F.normalize(go_emb,dim=1) ## go emb were trained based on cosine, so we have norm to length=1, this normalization will get similar GO to have truly similar vectors.
+    # if self.args.fix_go_emb:
+    go_emb = kwargs['go_emb']
+    # else:
+    #   ## Because of GCN, GO vectors not in subset will influence GO vectors inside subset, so we have to run GCN on the whole graph ? ... probably yes
+    #   go_emb = self.GOEncoder.gcn_2layer(kwargs['labeldesc_loader'],kwargs['edge_index']) ## go_emb is num_go x dim
+    #   go_emb = F.normalize(go_emb,dim=1) ## go emb were trained based on cosine, so we have norm to length=1, this normalization will get similar GO to have truly similar vectors.
 
     # prot_emb is usually fast, because we don't update it ? must update if we use deepgo approach
     prot_emb = self.ProtEncoder ( prot_idx, **kwargs ) ## output is batch x dim if we use deepgo. possible we need to change later.
-
+    
     ## append @prot_emb to vector from prot-prot interaction network
     prot_emb = torch.cat ( (prot_emb, prot_interact_emb) , dim=1 ) ## append to known ppi-network
 
