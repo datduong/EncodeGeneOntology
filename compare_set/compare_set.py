@@ -71,6 +71,7 @@ class GenePairDict ():
     for index in tqdm ( range (self.genePairList.shape[0]) ) :
 
       if (geneSet1[index] not in GeneGOdb1) or (geneSet2[index] not in GeneGOdb2):
+        print ('skip {} , {}'.format(geneSet1[index], geneSet2[index]))
         continue
 
       thisPair = GenePair (geneSet1[index],geneSet2[index],GeneGOdb1,GeneGOdb2) ## create gene pair object
@@ -93,6 +94,7 @@ class GenePairDict ():
       p = key.split(",") ## get GO terms
       d1 = " ".join(w for w in GOdef[p[0]])
       d2 = " ".join(w for w in GOdef[p[1]])
+      # p = [re.sub('GO:',"",go) for go in p] ## keep this same format as original entailment input
       fout.write('\n'+str(counter)+'\t'+d1+'\t'+d2+'\t'+p[0]+'\t'+p[1]+'\tnot_entailment')
       counter = counter + 1
 

@@ -10,26 +10,46 @@ from tempfile import TemporaryDirectory
 
 import compare_set
 
-main_dir = '/u/scratch/d/datduong/goAndGeneAnnotationDec2018'
+
+root = ['GO:0008372','GO:0005575','GO:0008150','GO:0000004', 'GO:0007582', 'GO:0044699', 'GO:0003674',' GO:0005554']
+
+
+# main_dir = '/u/scratch/d/datduong/goAndGeneAnnotationDec2018'
+main_dir = '/u/scratch/d/datduong/goAndGeneAnnotationMar2017'
 os.chdir(main_dir)
 
 ## read all GO def
+## should we use the old 2017 era go definitions ? 
 GOdef = compare_set.def2dict(name="go_def_in_obo.tsv")
 GO_name_array = list(GOdef.keys())
 
-### !! create species annot
-# for spec in ['goa_human','fb','wb','mgi']: # 'fb','wb','mgi',
-#   df = pd.read_csv( ""+spec+".gaf", header=None, sep="\t", comment="!", dtype='str' )
+""" before we remove tags 
+["\tIEA\t", "\tNAS\t", "\tNA\t", "\tNR\t"]
+But there were changes, some tags don't exists anymore. We will use original file in the format like this goa_fly.gafNotEI 
+"""
+
+# ### !! create species annot
+# os.chdir('/u/scratch/d/datduong/goAndGeneAnnotationMar2017/gafData2017')
+# for spec in ['human'] : # ['fb','wb','mgi','sgd']: # 'fb','wb','mgi', 'goa_human','fb','wb','mgi'
+#   df = pd.read_csv( "goa_"+spec+".gaf", header=None, sep="\t", comment="!", dtype='str' )
+#   # df = pd.read_csv( "gene_association."+spec+"", header=None, sep="\t", comment="!", dtype='str' )
 #   print ('table size {}'.format(df.shape))
-#   df = df [ ~df[6].isin(['IEA','ND']) ]
+#   ### !!!! 
+#   """ before we remove tags 
+#   ["\tIEA\t", "\tNAS\t", "\tNA\t", "\tNR\t"]
+#   But there were changes, some tags don't exists anymore. We will use original file in the format like this goa_fly.gaf. We also have goa_fly.gafNotEI but it seems the spacing is off somehow. so that tab space is not detected right.
+#   """
+#   df = df [ ~df[6].isin(['IEA','NAS','NA','NR']) ]
 #   df = df [ ~df[3].isin(['NOT']) ]
 #   df = df [ df[4].isin(GO_name_array) ] ## only valid def
 #   df = df [ [2,4] ] ## get these col only
+#   df = df.dropna() ## empty string name ?? for fly base ??
 #   df = df.sort_values(by=[2])
 #   df = df.drop_duplicates ()
 #   df.columns = ['uniprot','go']
 #   print ('table size after remove IEA {}'.format(df.shape))
 #   df.to_csv( spec+'_not_IEA.tsv',sep="\t",index=False)
+
 
 def submitJobs (gaf1,gaf2,saveDf,savePickle,genePairList,start,gapSize):
 
