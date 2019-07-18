@@ -13,12 +13,16 @@ def get_args():
                       help='learning rate')
   parser.add_argument('--result_folder', type=str, default=None,
                       help='where to save result')
+  parser.add_argument('--optim_choice', type=str, default='RMSprop',
+                      help='SGD , Adam , RMSprop')
   parser.add_argument('--epoch', type=int, default=200,
                       help='num of iteration')
   parser.add_argument('--def_emb_dim', type=int, default=300,
                       help='emb dim for definition of GO terms')
   parser.add_argument('--word_emb_dim', type=int, default=300,
                       help='emb dim for word')
+  parser.add_argument('--bilstm_dim', type=int, default=300,
+                      help='emb dim for lstm')
   parser.add_argument('--prot2seq_model_load', type=str, default=None,
                       help='path to a model to load')
   parser.add_argument('--go_enc_model_load', type=str, default=None,
@@ -37,8 +41,8 @@ def get_args():
                       help='path to a vocab')
   parser.add_argument('--not_train_w2v_emb', action='store_true',
                       help='do not train word emb')
-  parser.add_argument('--do_test', action='store_true',
-                      help='do_test only')
+  parser.add_argument('--not_train', action='store_true', ## some dumb error in 1st run, so we add this to do testing only
+                      help='not_train model, here do testing only')
   parser.add_argument('--metric_option', type=str,
                       help='cosine or entailment')
   parser.add_argument('--test_file', type=str, default=None,
