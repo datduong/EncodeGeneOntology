@@ -27,7 +27,8 @@ def get_args():
                       help='do_test only')
   parser.add_argument('--metric_option', type=str, required=True,
                       help='cosine or entailment')
-  
+  parser.add_argument('--use_encoded_layer', action = 'store_true', 
+		      help='allows user to use second to last layer in the BERT model as vector')
   parser.add_argument('--write_score', type=str, default=None,
                       help='write out score for 2 GO vectors') 
 
