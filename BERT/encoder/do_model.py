@@ -187,38 +187,12 @@ if args.use_cuda:
 if args.model_load is not None :
   bert_lm_ent_model.load_state_dict(torch.load(args.model_load))
 
-# if args.do_test and (not args.do_continue):
-
-#   print ("\n\neval only, not train\n\n")
-
-#   bert_lm_ent_model.eval()
-
-#   ## eval on train data (should see very high accuracy)
-#   print ("\neval on train data")
-#   torch.cuda.empty_cache()
-#   bert_lm_ent_model.eval_label(train_label_dataloader)
-
-#   print ("\neval on dev data") ### 
-#   torch.cuda.empty_cache()
-#   bert_lm_ent_model.eval_label(dev_label_dataloader)
-
-#   exit()
-
-# if args.write_vector: 
-
-#   processor = data_loader.LabelProcessorForWrite()
-#   label_desc_examples = processor.get_examples(args.label_desc_dir)
-#   label_desc_features = data_loader.convert_label_desc_to_features(label_desc_examples,max_seq_length=128, tokenizer=tokenizer)
-#   label_desc_dataloader, label_desc_name = data_loader.label_loader_for_write (label_desc_features,batch_size=64,fp16=args.fp16)
-
-#   fout_name = os.path.join(args.qnli_dir,"label_vector_"+args.metric_option+".tsv")
-#   bert_lm_ent_model.write_label_vector (label_desc_dataloader,fout_name,label_desc_name)
-
-#   exit() 
-
 print (bert_lm_ent_model)
 
 ## **** train
+
+if args.use_2nd_last_layer: 
+  print ('\n\nuse_2nd_last_layer, mean, then trained using cosine distance\n\n')
 
 for repeat in range( args.epoch ):
 

@@ -218,7 +218,6 @@ class encoder_model (nn.Module) :
     self.metric_module = metric_module
 
   def encode_label_desc (self, label_desc, label_len, label_mask): # @label_desc is matrix row=sentence, col=index
-    # encoded_layers , _ = self.bert_lm_sentence.bert (label_desc, output_all_encoded_layers=False) ## do not care about pool
 
     # # zero padding is not 0, but it has some value, because every character in sentence is "matched" with every other char.
     # # convert padding to actually zero or -inf (if we take maxpool later)
@@ -233,18 +232,20 @@ class encoder_model (nn.Module) :
     # used as as the "sentence vector". Note that this only makes sense because
     # the entire model is fine-tuned.
     # https://github.com/huggingface/pytorch-pretrained-BERT/blob/master/examples/extract_features.py#L95
-    if self.args.use_encoded_layer:
+
+    if self.args.use_2nd_last_layer:
     	encoded_layer , _  = self.bert_lm_sentence.bert (input_ids=label_desc, token_type_ids=None, attention_mask=label_mask, output_all_encoded_layers=True)
     	second_tolast = encoded_layer[-2]
-    	second_tolast[label_mask == 0] = 0
+    	second_tolast[label_mask == 0] = 0 ## mask to 0, so that summation over len will not be affected with strange numbers
     	cuda_second_layer = (second_tolast).type(torch.FloatTensor).cuda()
     	encode_sum = torch.sum(cuda_second_layer, dim = 1).cuda()
     	label_sum = torch.sum(label_mask.cuda(), dim=1).unsqueeze(0).transpose(0,1).type(torch.FloatTensor).cuda()
     	go_vectors = encode_sum/label_sum
     	return go_vectors
+
     else:
-    	_ , pooled_output  = self.bert_lm_sentence.bert (input_ids=label_desc, token_type_ids=None, attention_mask=label_mask, output_all_encoded_layers=False)
-    	return pooled_output # [batch_size, hidden_size]
+      _ , pooled_output = self.bert_lm_sentence.bert (input_ids=label_desc, token_type_ids=None, attention_mask=label_mask, output_all_encoded_layers=False)
+      return pooled_output # [batch_size, hidden_size]
 
   def train_label (self, train_dataloader, num_train_optimization_steps, dev_dataloader=None):
 
