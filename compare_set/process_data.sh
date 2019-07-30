@@ -40,8 +40,11 @@ module load python/3.7.2
 server='/u/scratch/d/datduong'
 
 previousSource=$server/'goAndGeneAnnotationMar2017'/'gafData2017'
+
 gaf1=$previousSource/'sgd_not_IEA.tsv' #goa_human_not_IEA
+
 pair='Yeast'
+
 genePairList=$server/$pair'PPI3ontology/'$pair'PPI2TestTrim.txt'
 outDir=$server/$pair'PPI3ontology/qnliFormatData17'
 
@@ -49,8 +52,8 @@ mkdir $outDir
 
 wc -l $genePairList
 
-gapSize=400
-for point in {0..12000..400}
+gapSize=300
+for point in {0..12000..300} # 5350
 do 
 
 echo $point
@@ -64,16 +67,22 @@ python3 process_data.py $gaf1 $gaf1 $saveDf $savePickle $genePairList $point $ga
 done
 
 
+
+## **** ## **** ## ****
+# we can use the same code to get prot interaction pairs in the same species 
+
 #!/bin/bash
 . /u/local/Modules/default/init/modules.sh
 module load python/3.7.2
 
-# 54178
 server='/u/scratch/d/datduong'
 
 previousSource=$server/'goAndGeneAnnotationMar2017'/'gafData2017'
+
 gaf1=$previousSource/'human_not_IEA.tsv' #goa_human_not_IEA
+
 pair='Human'
+
 genePairList=$server/$pair'PPI3ontology/'$pair'PPI2TestTrim.txt'
 outDir=$server/$pair'PPI3ontology/qnliFormatData17'
 
@@ -82,8 +91,8 @@ mkdir $outDir
 wc -l $genePairList
 
 gapSize=50
-for point in {0..5350..50}
-do
+for point in {0..5350..50} # 5350
+do 
 
 echo $point
 saveDf=$outDir/'PPI2testDef.'$point'.txt'
@@ -94,3 +103,4 @@ cd /u/scratch/d/datduong/GOmultitask/compare_set
 python3 process_data.py $gaf1 $gaf1 $saveDf $savePickle $genePairList $point $gapSize
 
 done
+

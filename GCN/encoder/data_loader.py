@@ -171,7 +171,7 @@ class QnliProcessor(DataProcessor):
       text_b = line[2]
       name_a = line[3] # name are not used, but good for debug
       name_b = line[4]
-      label = line[-1]
+      label = line[5]
 
       if 'GO' not in name_a:  ## STRICT ENFORCE GO:XYZ SYNTAX
         name_a = 'GO:'+name_a

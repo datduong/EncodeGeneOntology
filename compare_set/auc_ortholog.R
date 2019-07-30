@@ -75,9 +75,9 @@ for (ontology in c("all3") ) { ## "BP","CC","MF",
 
 	## append
 
-	# fin = 'qnliFormatData17/GcnRelu300Cosine/GeneScore.txt'
+	fin = 'qnliFormatData17/GcnRelu300Cosine/GeneScore.txt'
 	# fin = 'qnliFormatData17/cosine.768.reduce300ClsVec/GeneScore.txt'
-	fin = 'qnliFormatData17/cosine.bilstm.300Vec/GeneScore.txt'
+	# fin = 'qnliFormatData17/cosine.bilstm.300Vec/GeneScore.txt'
 
 	next_data_file = read.table(fin,header=F,sep=',')
 	# gene1,gene2,trueLabel,score1,score2

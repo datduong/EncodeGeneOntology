@@ -123,7 +123,7 @@ class GenePairDict ():
       ## call hausdorff score
       final_score = hausdorff_distance (score_array) ## return tuple
       self.genePair[g] = self.genePair[g] + list(final_score) ## append ... cost time, so we should just keep it ?
-      fout.write( this.gene1 + "," + this.gene2 + "," + self.genePair[g][1] + "," + ",".join( str(s) for s in final_score) + "\n" ) # "\n"+ 
+      fout.write( this.gene1 + "\t" + this.gene2 + "\t" + self.genePair[g][1] + "\t" + "\t".join( str(s) for s in final_score) + "\n" ) # "\n"+ 
 
     # end
     fout.close() 

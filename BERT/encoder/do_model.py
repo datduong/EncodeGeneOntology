@@ -219,7 +219,7 @@ for repeat in range( args.epoch ):
 
 
 print ('\n\nload back best model')
-bert_lm_ent_model.load_state_dict( torch.load( os.path.join(args.result_folder,"best_state_dict.pytorch") ) )
+bert_lm_ent_model.load_state_dict( torch.load( os.path.join(args.model_load) ) )
 
 """ get dev or test set  """
 

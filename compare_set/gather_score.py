@@ -11,9 +11,6 @@ from tempfile import TemporaryDirectory
 
 import compare_set
 
-main_dir = '/u/scratch/d/datduong/goAndGeneAnnotationDec2018'
-os.chdir(main_dir)
-
 
 def submitJobs (pickleDf,scoreFile,nameOut,start):
 
