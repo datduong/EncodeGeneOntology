@@ -21,9 +21,9 @@ class bi_lstm_sent_encoder (nn.Module):
 
 		## doing this will avoid having to inti the @hidden_state_time_zero
 		## here, @lstm_out_dim will be *2 because of bidirection
-		self.lstm = getattr(nn, rnn_type)(lstm_input_dim, lstm_out_dim//2, num_layers=num_layers, ## @1 for 1 layer
-																		batch_first=True, dropout=dropout,
-																		bidirectional=True)
+		self.lstm = getattr(nn, rnn_type)(lstm_input_dim, lstm_out_dim//2, num_layers=num_layers,  # @1 for 1 layer
+                                    batch_first=True, dropout=dropout,
+                                    bidirectional=True)
 		self.use_cuda = use_cuda
 
 	def forward(self, embeds, seq_lengths): ## @seq_lengths is used to avoid useless lstm passing to end of padding.
@@ -36,9 +36,7 @@ class bi_lstm_sent_encoder (nn.Module):
 		idx_unsort = np.argsort(idx_sort)
 
 		if self.use_cuda:
-			idx_sort = Variable(idx_sort).cuda()  # torch.from_numpy(idx_sort) #.cuda()
-		else:
-			idx_sort = Variable(idx_sort)
+			idx_sort = idx_sort.cuda()
 
 		embeds = embeds.index_select(0, idx_sort ) ## order the embedding by len
 
@@ -50,11 +48,12 @@ class bi_lstm_sent_encoder (nn.Module):
 		lstm_out, _ = pad_packed_sequence(lstm_out, batch_first=True, padding_value=-np.inf) ## see the zero as padding
 
 		# Un-sort by length, so we get back the original ordering not sorted by len.
+
 		# idx_unsort = torch.from_numpy(idx_unsort) #.cuda()
 		if self.use_cuda :
-			lstm_out = lstm_out.index_select(0, Variable(idx_unsort).cuda() )
-		else:
-			lstm_out = lstm_out.index_select(0, Variable(idx_unsort) )
+			idx_unsort = idx_unsort.cuda()
+
+		lstm_out = lstm_out.index_select(0, idx_unsort )
 
 		lstm_out , _ = torch.max (lstm_out, dim=1 ) # num_batch x lstm_dim
 		return lstm_out

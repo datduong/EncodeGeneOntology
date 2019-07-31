@@ -19,6 +19,8 @@ def get_args():
                       help='num of iteration')
   parser.add_argument('--def_emb_dim', type=int, default=300,
                       help='emb dim for definition of GO terms')
+  parser.add_argument('--bilstm_dim', type=int, default=1024,
+                      help='lstm output dim')
   parser.add_argument('--word_emb_dim', type=int, default=300,
                       help='emb dim for word')
   parser.add_argument('--model_load', type=str, default=None,

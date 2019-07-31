@@ -363,6 +363,9 @@ class encoder_model_biLstm (encoder_model):
     self.biLstm = biLstm
     self.dropout = nn.Dropout(p=kwargs['dropout'])
 
+    self.reduce_vec_dim = nn.Linear(args.bilstm_dim, args.def_emb_dim) ## take something like 1024 reduce to 300
+    xavier_uniform_(self.reduce_vec_dim.weight)
+
     if 'pretrained_weight' in kwargs:
       self.label_embedding = nn.Embedding(kwargs['num_of_word'],kwargs['word_vec_dim'],padding_idx=0)
       self.label_embedding.weight.data.copy_(torch.from_numpy(kwargs['pretrained_weight']))
@@ -389,7 +392,7 @@ class encoder_model_biLstm (encoder_model):
       label_idx = self.biLstm.forward(label_idx,label_len) # one vector for each node
 
       end = start + label_len.shape[0]
-      label_emb[start:end] = label_idx # replace
+      label_emb[start:end] = self.reduce_vec_dim (label_idx) # replace
       start = end
 
     return label_emb

@@ -144,10 +144,14 @@ if args.w2v_emb is None:
 else: 
 
   print (other_params)
+  print ("\nusing these mode to model gcn input {}".format(args.word_mode))
 
   if args.word_mode == 'bilstm': 
-    import bi_lstm_model
-    biLstm = bi_lstm_model.bi_lstm_sent_encoder( other_params['word_vec_dim'], args.gcnn_dim )
+    import GCN.encoder.bi_lstm_model as bi_lstm_model
+    biLstm = bi_lstm_model.bi_lstm_sent_encoder( other_params['word_vec_dim'], args.bilstm_dim )
+    if args.use_cuda: 
+      biLstm.cuda() 
+      
     model = encoder_model.encoder_model_biLstm ( args, metric_pass_to_joint_model[args.metric_option], biLstm, **other_params )
 
   if args.word_mode == 'conv1d': 
