@@ -182,6 +182,23 @@ if args.w2v_emb is not None:
   other_params ['pretrained_weight'] = pretrained_weight
 
 
+## **** load GO count dictionary data
+if args.label_counter_dict is not None:
+  GO_counter = pickle.load(open(args.label_counter_dict,"rb"))
+  quant25, quant75 = protSeqLoader.GetCountQuantile(GO_counter)
+  betweenQ25Q75 = protSeqLoader.IndexBetweenQ25Q75Quantile(label_to_test,GO_counter,quant25,quant75)
+  quant25 = protSeqLoader.IndexLessThanQuantile(label_to_test,GO_counter,quant25)
+  quant75 = protSeqLoader.IndexMoreThanQuantile(label_to_test,GO_counter,quant75)
+
+  print ('counter 25 and 75 quantiles {} {}'.format(quant25, quant75))
+
+  other_params['GoCount'] = GO_counter
+  other_params['quant25'] = quant25
+  other_params['quant75'] = quant75
+  other_params['betweenQ25Q75'] = betweenQ25Q75
+
+
+
 ## **** make BERT model
 
 # bert language mask + next sentence model
@@ -273,5 +290,5 @@ prot2seq_model.load_state_dict( torch.load( os.path.join(args.result_folder,"bes
 ## load test set
 test_loader = protSeqLoader.ProtLoader (args.data_dir, 'test'+add_name+'.tsv', all_name_array, MAX_SEQ_LEN, 'sequential', args, args.do_kmer, label_to_test)
 print ('\non test set\n')
-prot2seq_model.do_eval(test_loader, **other_params)
+result, preds, tr_loss = prot2seq_model.do_eval(test_loader, **other_params)
 

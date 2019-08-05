@@ -3,7 +3,7 @@
 from __future__ import unicode_literals, print_function, division
 from io import open
 import unicodedata
-import string, re, sys, os
+import string, re, sys, os, math
 from tqdm import tqdm
 import numpy as np
 from collections import namedtuple
@@ -15,8 +15,6 @@ import logging
 import json
 
 from scipy.special import softmax
-
-import math
 
 import torch
 import torch.nn as nn
@@ -189,7 +187,7 @@ class ProtSeq2GOBase (nn.Module):
       self.train()
       tr_loss = 0
 
-      for step, batch in enumerate(tqdm(prot_loader, desc="ent. epoch {}".format(epoch))):
+      for step, batch in enumerate(tqdm(prot_loader, desc="epoch {}".format(epoch))):
 
         batch = tuple(t for t in batch) # all_input_ids, all_input_len, all_input_mask, all_label_ids
 
@@ -221,8 +219,8 @@ class ProtSeq2GOBase (nn.Module):
       print ("\ntrain epoch {} loss {}".format(epoch,tr_loss))
 
       # eval at each epoch
-      print ('\neval on train data epoch {}'.format(epoch)) ## if too slow, comment out. skip for now
-      result, _ , _ = self.do_eval(prot_loader,**kwargs)
+      # print ('\neval on train data epoch {}'.format(epoch)) ## if too slow, comment out. skip for now
+      # result, _ , _ = self.do_eval(prot_loader,**kwargs)
 
       print ('\neval on dev data epoch {}'.format(epoch))
       result, preds, dev_loss = self.do_eval(prot_dev_loader,**kwargs)
@@ -304,8 +302,55 @@ class ProtSeq2GOBase (nn.Module):
     print ('true label')
     print (all_label_ids)
 
-    result = evaluation_metric.all_metrics ( np.round(preds), all_label_ids, yhat_raw=preds, k=self.args.top_k)
-    evaluation_metric.print_metrics( result )
+    trackF1macro = {}
+    trackF1micro = {} # metrics["f1_micro"]
+
+    for round_cutoff in np.arange(.1,1,.1):
+
+      print ('\n\nround cutoff {}'.format(round_cutoff))
+
+      preds_round = 1.0*( round_cutoff < preds ) ## converted into 0/1
+
+      result = evaluation_metric.all_metrics ( preds_round , all_label_ids, yhat_raw=preds, k=self.args.top_k)
+      evaluation_metric.print_metrics( result )
+
+      if 'full_data' not in trackF1macro:
+        trackF1macro['full_data'] = [result["f1_macro"]]
+        trackF1micro['full_data'] = [result["f1_micro"]]
+      else:
+        trackF1macro['full_data'].append(result["f1_macro"])
+        trackF1micro['full_data'].append(result["f1_micro"])
+
+      if 'GoCount' in kwargs :
+        print ('\n\nsee if method improves accuracy conditioned on frequency of GO terms')
+
+        ## frequency less than 25 quantile  and over 75 quantile
+        ## indexing must be computed ahead of time to to avoid redundant calculation
+
+        for cutoff in ['quant25','quant75','betweenQ25Q75']:
+          ## indexing of the column to pull out , @pred is num_prot x num_go
+          result = evaluation_metric.all_metrics ( preds_round[: , kwargs[cutoff]] , all_label_ids[: , kwargs[cutoff]], yhat_raw=preds[: , kwargs[cutoff]], k=self.args.top_k)
+          print ("\nless than {} count".format(cutoff))
+          evaluation_metric.print_metrics( result )
+
+          if cutoff not in trackF1macro:
+            trackF1macro[cutoff] = [result["f1_macro"]]
+            trackF1micro[cutoff] = [result["f1_micro"]]
+          else:
+            trackF1macro[cutoff].append(result["f1_macro"])
+            trackF1micro[cutoff].append(result["f1_micro"])
+
+
+    ##
+    print ('\n\ntracking f1 compile into list')
+
+    print ('\nmacro')
+    for k,v in trackF1macro.items():
+      print (k + " " + " ".join(str(s) for s in v))
+
+    print ('\nmicro')
+    for k,v in trackF1micro.items():
+      print (k + " " + " ".join(str(s) for s in v))
 
     return result, preds, tr_loss
 
@@ -462,7 +507,7 @@ class DeepGOFlatSeqProtHwayGo (DeepGOFlatSeqProt):
     ## **** TO SAVE SOME TIME, IF WE DON'T UPDATE LABEL DESCRIPTION, WE CAN COMPUTE IT AHEAD OF TIME.
     # if self.args.fix_go_emb:
     go_emb = kwargs['go_emb']
-    
+
     # else:
     #   go_emb = self.GOEncoder.gcn_2layer(kwargs['labeldesc_loader'],kwargs['edge_index']) ## go_emb is num_go x dim
     #   go_emb = F.normalize(go_emb,dim=1) ## go emb were trained based on cosine, so we have norm to length=1, this normalization will get similar GO to have truly similar vectors.
@@ -475,7 +520,7 @@ class DeepGOFlatSeqProtHwayGo (DeepGOFlatSeqProt):
 
     ## somehow ... account for the GO vectors
     ## highway network for @prot_emb_concat
-  
+
     ## testing on subset, so we call kwargs['label_to_test_index']
     ## if we don't care about using graph/ or children terms, then @label_to_test_index should be just simple index 0,1,2,3,....
     prot_go_vec = self.concat_prot_go ( prot_emb, go_emb[kwargs['label_to_test_index']] ) ## output shape batch x num_go x dim
@@ -483,6 +528,46 @@ class DeepGOFlatSeqProtHwayGo (DeepGOFlatSeqProt):
     ## testing on subset
     pred = self.LinearRegression.weight.mul(prot_go_vec).sum(2) + self.LinearRegression.bias ## dot-product sum up
 
+    loss = self.classify_loss ( pred, label_ids.cuda() )
+
+    return pred, loss
+
+
+class DeepGOFlatSeqProtHwayNotUseGo (DeepGOFlatSeqProtHwayGo):
+
+  def __init__(self,ProtEncoder, GOEncoder, args, **kwargs):
+
+    ## this object is meant to show that using the extra highway network without GO vector DOES NOT IMPROVE RESULTS
+
+    super().__init__(ProtEncoder, GOEncoder, args, **kwargs)
+
+    dim_in = args.prot_vec_dim + args.prot_interact_vec_dim ## INSTEAD OF HAVING GO VEC, WE HAVE EXTRA @prot_vec_dim
+    dim_out = args.prot_vec_dim + args.prot_interact_vec_dim
+    self.ReduceProtGoEmb = nn.Sequential(nn.Linear(dim_in, dim_out),
+                                         nn.ReLU())
+
+    xavier_uniform_(self.ReduceProtGoEmb[0].weight)
+    # xavier_uniform_(self.ReduceProtGoEmb[3].weight)
+
+    ## notice we change dim of this Linear Layer
+    self.LinearRegression = nn.Linear( dim_out*2 , args.num_label_to_test )
+    xavier_uniform_(self.LinearRegression.weight)
+
+  def forward( self, prot_idx, mask, prot_interact_emb, label_ids, **kwargs ):
+
+    # prot_emb is usually fast, because we don't update it ? must update if we use deepgo approach
+    prot_emb = self.ProtEncoder ( prot_idx, **kwargs ) ## output is batch x dim if we use deepgo. possible we need to change later.
+
+    ## append @prot_emb to vector from prot-prot interaction network
+    prot_emb = torch.cat ( (prot_emb, prot_interact_emb) , dim=1 ) ## append to known ppi-network
+
+    ## CREATE INTERACTION TERM BUT DO NOT USE GO VECTOR
+    prot_emb_interaction_term = self.ReduceProtGoEmb (prot_emb)
+
+    prot_emb = torch.cat ( (prot_emb, prot_emb_interaction_term), dim=1 ) ## this is num_batch x dim
+
+    ## testing on subset
+    pred = self.LinearRegression.weight.mul(prot_emb.unsqueeze(1)).sum(2) + self.LinearRegression.bias ## dot-product sum up
     loss = self.classify_loss ( pred, label_ids.cuda() )
 
     return pred, loss
@@ -547,7 +632,7 @@ class DeepGOTreeSeqProtHwayGo (DeepGOFlatSeqProtHwayGo):
 
     # prot_emb is usually fast, because we don't update it ? must update if we use deepgo approach
     prot_emb = self.ProtEncoder ( prot_idx, **kwargs ) ## output is batch x dim if we use deepgo. possible we need to change later.
-    
+
     ## append @prot_emb to vector from prot-prot interaction network
     prot_emb = torch.cat ( (prot_emb, prot_interact_emb) , dim=1 ) ## append to known ppi-network
 

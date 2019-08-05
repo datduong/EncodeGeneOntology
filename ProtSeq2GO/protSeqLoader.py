@@ -269,3 +269,43 @@ def ProtLoader (data_dir, data_type_name, all_name_array, max_seq_length, sample
   dataloader, prot_name = makeProtLoader (features, batch_size=args.batch_size_label, sampler=sampler, has_ppi_emb=args.has_ppi_emb)
   return dataloader
 
+
+### !!!!!
+### !!!!!
+
+# count go terms 
+def IndexLessThanQuantile (label_to_test,count_dict,quant) : 
+  index2extract = []
+  for index, label in enumerate (label_to_test): 
+    if label not in count_dict: ## label occur in whole data, but it doesn't occur in train data
+      index2extract.append(index) ## see term GO:0004812
+      continue
+    if count_dict[label] < quant: 
+      index2extract.append(index)
+  return index2extract
+
+def IndexMoreThanQuantile (label_to_test,count_dict,quant) : 
+  index2extract = []
+  for index, label in enumerate (label_to_test): 
+    if label not in count_dict: ## label occur in whole data, but it doesn't occur in train data
+      continue ## count is consider 0, so ... not greater than 75th quant
+    if count_dict[label] > quant: 
+      index2extract.append(index)
+  return index2extract
+
+def IndexBetweenQ25Q75Quantile (label_to_test,count_dict,quant1,quant2) : 
+  index2extract = []
+  for index, label in enumerate (label_to_test): 
+    if label not in count_dict: ## label occur in whole data, but it doesn't occur in train data
+      continue
+    if (count_dict[label] >= quant1) and (count_dict[label] <= quant2): 
+      index2extract.append(index)
+  return index2extract
+
+
+def GetCountQuantile (count_dict): 
+  count = [count_dict[k] for k in count_dict] 
+  quant = np.quantile(count,q=[0.25,0.75]) ## probably 2 of these are enough 
+  return quant
+
+

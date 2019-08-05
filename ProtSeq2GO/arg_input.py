@@ -11,6 +11,8 @@ def get_args():
 
   parser.add_argument('--lr', type=float, default=0.0001,
                       help='learning rate')
+  parser.add_argument('--use_2nd_last_layer', action='store_true',
+                      help='allows user to use second to last layer in the BERT model as vector')
   parser.add_argument('--result_folder', type=str, default=None,
                       help='where to save result')
   parser.add_argument('--optim_choice', type=str, default='RMSprop',
@@ -24,7 +26,9 @@ def get_args():
   parser.add_argument('--bilstm_dim', type=int, default=300,
                       help='emb dim for lstm')
   parser.add_argument('--prot2seq_model_load', type=str, default=None,
-                      help='path to a model to load')
+                      help='path to a model to load') 
+  parser.add_argument('--label_counter_dict', type=str, default=None,
+                      help='dictionary with counter for each label in train data') 
   parser.add_argument('--go_enc_model_load', type=str, default=None,
                       help='path to a model to load')
   parser.add_argument('--label_in_ontology', type=str, default=None,

@@ -31,16 +31,27 @@ deepgo_dir=$server/'deepgo/data/train/fold_'$fold
 
 data_dir=$deepgo_dir
 
-model_choice='DeepGOFlatSeqProtHwayGo'
-result_folder=$data_dir/'FlatSeqProtHwayBilstmGo.'$ontology
+# model_choice='DeepGOFlatSeqProtHwayGo'
+# result_folder=$data_dir/'FlatSeqProtHwayBilstmGoRun2.'$ontology
+# prot2seq_model_load=$result_folder/'last_state_dict.pytorch'
+
+# result_folder=$data_dir/'FlatSeqProtHwayBilstmGoRun2.'$ontology
+
+model_choice='DeepGOFlatSeqProtHwayNotUseGo'
+result_folder=$data_dir/'FlatSeqProtHwayNotUseGo2.'$ontology
 prot2seq_model_load=$result_folder/'last_state_dict.pytorch'
 
-result_folder=$data_dir/'FlatSeqProtHwayBilstmGoRun2.'$ontology
-mkdir $result_folder
+label_counter_dict=$deepgo_dir/'CountGoInTrain-'$ontology'.pickle'
+
+
+# mkdir $result_folder
 
 cd $server/GOmultitask/
 
-CUDA_VISIBLE_DEVICES=7 python3 $server/GOmultitask/ProtSeq2GO/do_model_bilstm.py --bilstm_dim 1024 --vocab_list $vocab_list --w2v_emb $w2v_emb --model_choice $model_choice --has_ppi_emb --prot_interact_vec_dim $prot_interact_vec_dim --ontology $ontology --do_kmer --go_vec_dim 300 --prot_vec_dim 832 --optim_choice RMSprop --lr 0.001 --main_dir $work_dir --data_dir $data_dir --batch_size_label 128 --result_folder $result_folder --epoch 100 --use_cuda --metric_option $metric_option --go_enc_model_load $go_enc_model_load --label_subset_file $label_subset_file --label_in_ontology $label_in_ontology --fix_go_emb --def_emb_dim $def_emb_dim --reduce_cls_vec --prot2seq_model_load $prot2seq_model_load > $result_folder/train.log
+# CUDA_VISIBLE_DEVICES=7 python3 $server/GOmultitask/ProtSeq2GO/do_model_bilstm.py --bilstm_dim 1024 --vocab_list $vocab_list --w2v_emb $w2v_emb --model_choice $model_choice --has_ppi_emb --prot_interact_vec_dim $prot_interact_vec_dim --ontology $ontology --do_kmer --go_vec_dim 300 --prot_vec_dim 832 --optim_choice RMSprop --lr 0.001 --main_dir $work_dir --data_dir $data_dir --batch_size_label 128 --result_folder $result_folder --epoch 100 --use_cuda --metric_option $metric_option --go_enc_model_load $go_enc_model_load --label_subset_file $label_subset_file --label_in_ontology $label_in_ontology --fix_go_emb --def_emb_dim $def_emb_dim --reduce_cls_vec --prot2seq_model_load $prot2seq_model_load > $result_folder/train.log
+
+## use below so that we remove the GO vectors to show that results do not improve without go vectors. 
+CUDA_VISIBLE_DEVICES=1 python3 $server/GOmultitask/ProtSeq2GO/do_model_bilstm.py --bilstm_dim 1024 --vocab_list $vocab_list --w2v_emb $w2v_emb --model_choice $model_choice --has_ppi_emb --prot_interact_vec_dim $prot_interact_vec_dim --ontology $ontology --do_kmer --go_vec_dim 300 --prot_vec_dim 832 --optim_choice RMSprop --lr 0.0001 --main_dir $work_dir --data_dir $data_dir --batch_size_label 24 --result_folder $result_folder --epoch 100 --use_cuda --metric_option $metric_option --go_enc_model_load $go_enc_model_load --label_subset_file $label_subset_file --label_in_ontology $label_in_ontology --fix_go_emb --def_emb_dim $def_emb_dim --reduce_cls_vec --prot2seq_model_load $prot2seq_model_load --not_train --label_counter_dict $label_counter_dict > $result_folder/test_frequency.log # --prot2seq_model_load $prot2seq_model_load
 
 done
 

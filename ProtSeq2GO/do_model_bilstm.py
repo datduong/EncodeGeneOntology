@@ -180,6 +180,24 @@ if args.w2v_emb is not None:
   other_params ['pretrained_weight'] = pretrained_weight
 
 
+
+## **** load GO count dictionary data
+if args.label_counter_dict is not None:
+  GO_counter = pickle.load(open(args.label_counter_dict,"rb"))
+  quant25, quant75 = protSeqLoader.GetCountQuantile(GO_counter)
+  betweenQ25Q75 = protSeqLoader.IndexBetweenQ25Q75Quantile(label_to_test,GO_counter,quant25,quant75)
+  quant25 = protSeqLoader.IndexLessThanQuantile(label_to_test,GO_counter,quant25)
+  quant75 = protSeqLoader.IndexMoreThanQuantile(label_to_test,GO_counter,quant75)
+  
+  print ('counter 25 and 75 quantiles {} {}'.format(quant25, quant75))
+
+  other_params['GoCount'] = GO_counter
+  other_params['quant25'] = quant25
+  other_params['quant75'] = quant75
+  other_params['betweenQ25Q75'] = betweenQ25Q75
+
+
+
 ## **** make bilstm model
 
 biLstm = bi_lstm_model.bi_lstm_sent_encoder( other_params['word_vec_dim'], args.bilstm_dim )
@@ -241,6 +259,9 @@ if args.model_choice == 'DeepGOFlatSeqOnly':
 
 if args.model_choice == 'DeepGOFlatSeqProtHwayGo':
   prot2seq_model = ProtSeq2GOModel.DeepGOFlatSeqProtHwayGo (ProtEncoder, GOEncoder, args, **other_params)
+
+if args.model_choice == 'DeepGOFlatSeqProtHwayNotUseGo': ## meant to be used to show that we need GO vectors. it has almost exactly the same structure as @DeepGOFlatSeqProtHwayGo
+  prot2seq_model = ProtSeq2GOModel.DeepGOFlatSeqProtHwayNotUseGo (ProtEncoder, GOEncoder, args, **other_params)
 
 if args.model_choice == 'DeepGOTreeSeqProtHwayGo':
   prot2seq_model = ProtSeq2GOModel.DeepGOTreeSeqProtHwayGo (ProtEncoder, GOEncoder, args, **other_params)

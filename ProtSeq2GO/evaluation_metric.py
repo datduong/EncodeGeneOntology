@@ -242,7 +242,6 @@ def metrics_from_dicts(preds, golds, mdir, ind2c):
     y[i] = gold_inds
   return yhat, yhat_raw, y, all_metrics(yhat, y, yhat_raw=yhat_raw, calc_auc=False)
 
-
 def union_size(yhat, y, axis):
   #axis=0 for label-level union (macro). axis=1 for instance-level
   return np.logical_or(yhat, y).sum(axis=axis).astype(float)

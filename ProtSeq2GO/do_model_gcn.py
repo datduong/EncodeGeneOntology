@@ -157,6 +157,23 @@ if args.w2v_emb is not None:
   other_params ['word_vec_dim'] = pretrained_weight.shape[1]
   other_params ['pretrained_weight'] = pretrained_weight
 
+
+## **** load GO count dictionary data
+if args.label_counter_dict is not None:
+  GO_counter = pickle.load(open(args.label_counter_dict,"rb"))
+  quant25, quant75 = protSeqLoader.GetCountQuantile(GO_counter)
+  betweenQ25Q75 = protSeqLoader.IndexBetweenQ25Q75Quantile(label_to_test,GO_counter,quant25,quant75)
+  quant25 = protSeqLoader.IndexLessThanQuantile(label_to_test,GO_counter,quant25)
+  quant75 = protSeqLoader.IndexMoreThanQuantile(label_to_test,GO_counter,quant75)
+  
+  print ('counter 25 and 75 quantiles {} {}'.format(quant25, quant75))
+
+  other_params['GoCount'] = GO_counter
+  other_params['quant25'] = quant25
+  other_params['quant75'] = quant75
+  other_params['betweenQ25Q75'] = betweenQ25Q75
+
+
 # cosine model
 # **** in using cosine model, we are not using the training sample A->B then B not-> A
 
