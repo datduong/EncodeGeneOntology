@@ -309,7 +309,6 @@ class encoder_model_conv1d (encoder_model):
     return self.gcn2.forward (node_emb, edge_index) ## not relu or tanh in last layer
 
 
-
 class encoder_model_avepool (encoder_model):
 
   def __init__(self,args,metric_module,**kwargs):
