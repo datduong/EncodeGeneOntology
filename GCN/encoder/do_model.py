@@ -26,14 +26,14 @@ from pytorch_pretrained_bert.tokenization import BertTokenizer, load_vocab
 from torch_geometric.data import Data
 from torch_geometric.nn import GCNConv
 
-sys.path.append("/local/datdb/GOmultitask")
+sys.path.append("/local/lgai/EncodeGeneOntology")
 
 import GCN.encoder.arg_input as arg_input
 args = arg_input.get_args()
 
 import GCN.encoder.data_loader as data_loader
 import GCN.encoder.encoder_model as encoder_model
-import GCN.encoder.entailment_model as entailment_model
+#import GCN.encoder.entailment_model as entailment_model
 
 
 MAX_SEQ_LEN = 256
@@ -46,6 +46,9 @@ if args.fp16:
 
 ## **** load edges ****
 
+# Note: edge_index is compressed adjacency matrix 
+# Order of GO terms matches that in all_name_array
+# Any pretrained weights must also have same order 
 edge_index = pickle.load ( open("adjacency_matrix_coo_format.pickle","rb") )
 edge_index = torch.tensor( edge_index, dtype=torch.long)
 if args.use_cuda:
@@ -81,7 +84,8 @@ else:
 ## **** for the rest, we don't use the "GO:"
 # all_name_array = [ re.sub(r"GO:","",g) for g in all_name_array ]
 
-
+'''
+# commented out entailment
 ## read go terms entailment pairs to train
 
 processor = data_loader.QnliProcessor()
@@ -107,7 +111,7 @@ if args.test_file is None:
   dev_label_dataloader = data_loader.make_data_loader (dev_label_features,batch_size=args.batch_size_label,fp16=args.fp16, sampler='sequential',metric_option=args.metric_option)
   # torch.save( dev_label_dataloader, os.path.join( args.qnli_dir, "dev_label_dataloader"+name_add_on+".pytorch") )
   print ('\ndev_label_examples {}'.format(len(dev_label_examples))) # dev_label_examples 7661
-
+'''
 
 ## **** make model ****
 
@@ -120,8 +124,32 @@ other_params = {'dropout': 0.2,
 
 pretrained_weight = None
 if args.w2v_emb is not None:
-  pretrained_weight = pickle.load(open(args.w2v_emb,'rb'))
-  pretrained_weight.shape[0]
+  if args.w2v_emb[-4:] == '.txt':
+    # assume first line is a header
+    with open(args.w2v_emb) as f:
+      num_of_word, word_vec_dim = [int(x) for x in f.readline().rstrip().split()]
+
+    pretrained_weight_names = [] # GO terms in order
+    pretrained_weight = np.zeros((num_of_word, word_vec_dim))
+    
+    with open(args.w2v_emb) as f:
+      f.readline(); i = 0
+      for line in f:
+        lineL = line.rstrip().split()
+        pretrained_weight_names.append(lineL[0])
+        pretrained_weight[i,:] = [float(x) for x in lineL[1:]]
+        i += 1
+    
+    # check order of GO terms matches
+    if pretrained_weight_names != list(all_name_array):
+      print('pretrained_weight: ', pretrained_weight[:4])
+      print('all_name_array: ', all_name_array[:4])
+      print('order of weights doesn\'t match TODO')
+
+  else:
+    pretrained_weight = pickle.load(open(args.w2v_emb,'rb')) 
+    pretrained_weight.shape[0]
+  
   other_params ['num_of_word'] = pretrained_weight.shape[0]
   other_params ['word_vec_dim'] = pretrained_weight.shape[1]
   other_params ['pretrained_weight'] = pretrained_weight 
@@ -131,10 +159,11 @@ if args.w2v_emb is not None:
 cosine_loss = encoder_model.cosine_distance_loss(args.gcnn_dim,args.gcnn_dim, args)
 
 # entailment model
-ent_model = entailment_model.entailment_model (num_labels,args.gcnn_dim,args.def_emb_dim,weight=torch.FloatTensor([1.5,.75])) # torch.FloatTensor([1.5,.75])
+# ent_model = entailment_model.entailment_model (num_labels,args.gcnn_dim,args.def_emb_dim,weight=torch.FloatTensor([1.5,.75])) # torch.FloatTensor([1.5,.75])
 
-
-metric_pass_to_joint_model = {'entailment':ent_model, 'cosine':cosine_loss}
+# comment out entailment model
+#metric_pass_to_joint_model = {'entailment':ent_model, 'cosine':cosine_loss}
+metric_pass_to_joint_model = {'cosine':cosine_loss} # TODO entailment commented out
 
 ## make GCN model
 
@@ -145,7 +174,7 @@ else:
 
   print (other_params)
   print ("\nusing these mode to model gcn input {}".format(args.word_mode))
-
+  print ('word mode: %s\n' % args.word_mode)
   if args.word_mode == 'bilstm': 
     import GCN.encoder.bi_lstm_model as bi_lstm_model
     biLstm = bi_lstm_model.bi_lstm_sent_encoder( other_params['word_vec_dim'], args.bilstm_dim )
@@ -159,6 +188,12 @@ else:
 
   if args.word_mode == 'avepool': 
     model = encoder_model.encoder_model_avepool ( args, metric_pass_to_joint_model[args.metric_option], **other_params )
+
+  if args.word_mode == 'pretrained':
+    model = encoder_model.encoder_model_pretrained_embedding ( args, **other_params )
+
+  if args.word_mode == 'pretrained_aux':
+    model = encoder_model.encoder_model_extended_embedding ( args, **other_params )
 
 if args.use_cuda:
   print ('\n\n send model to gpu\n\n')

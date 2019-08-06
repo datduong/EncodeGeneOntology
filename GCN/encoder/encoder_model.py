@@ -128,7 +128,7 @@ class encoder_model (nn.Module) :
     return self.gcn2.forward (node_emb, edge_index) ## not relu or tanh in last layer
 
   def make_optimizer (self):
-    if self.args.fix_word_emb:
+    if self.args.fix_word_emb: # use this option to freeze embedding
       return torch.optim.Adam ( [p for n,p in self.named_parameters () if "label_embedding" not in n] , lr=self.args.lr )
     else:
       return torch.optim.Adam ( self.parameters(), lr=self.args.lr )
@@ -403,8 +403,36 @@ class encoder_model_biLstm (encoder_model):
     return self.gcn2.forward (node_emb, edge_index) ## not relu or tanh in last layer
 
 
+class encoder_model_pretrained_embedding (encoder_model):
 
+  def __init__(self,args,metric_module,**kwargs):
 
+    super(encoder_model_pretrained_embedding, self).__init__(args,metric_module,**kwargs)
+    self.dropout = nn.Dropout(p=kwargs['dropout'])
+
+    if 'pretrained_weight' in kwargs:
+      self.label_embedding = nn.Embedding(kwargs['num_of_word'],kwargs['word_vec_dim'])
+      self.label_embedding.weight.data.copy_(torch.from_numpy(kwargs['pretrained_weight']))
+    else:
+      print('Must provide pretrained_weight, TODO')
+      self.label_embedding = nn.Embedding(args.num_label,args.def_emb_dim)# just random init atm, or could exit
+
+# add extra dim to label embedding which are trained
+class encoder_model_extended_embedding (encoder_model_pretrained_embedding):
+
+  def __init__(self,args,metric_, **kwargs):
+
+    super(encoder_model_extended_embedding, self).__init__(args,metric_module,**kwargs)
+    self.dropout = nn.Dropout(p=kwargs['dropout'])
+    self.aux_label_embedding = nn.Embedding(args.num_label,args.aux_def_emb_dim) ## each label is a vector
+    # initially untrained embedding (ex/ if pretrained embedding is dim 300, and additional embedding is dim 100, this is dim 100.)
+
+  def gcn_2layer (self,labeldesc_loader,edge_index):
+    # pretrained label embeddings are frozen, aux dimensions are trained
+    combined_label_embedding_weight = torch.concat((self.label_embedding.weight, self.aux_label_embedding.weight), 1)
+    node_emb = self.nonlinear_gcnn ( self.gcn1.forward ( self.dropout ( combined_label_embedding_weight  ), edge_index) ) ## take in entire label space at once
+
+    return self.gcn2.forward (node_emb, edge_index) ## not relu or tanh in last layer
 
 
 

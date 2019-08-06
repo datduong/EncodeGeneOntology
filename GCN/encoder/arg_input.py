@@ -10,7 +10,7 @@ def get_args():
       description='encode label descriptions into vectors')
 
   parser.add_argument('--word_mode', type=str, default=None,
-                      help='do we use bilstm or avepool')
+                      help='do we use bilstm or avepool (or pretrained)')
   parser.add_argument('--lr', type=float, default=0.0001,
                       help='learning rate')
   parser.add_argument('--result_folder', type=str, default=None,
@@ -18,7 +18,9 @@ def get_args():
   parser.add_argument('--epoch', type=int, default=200,
                       help='num of iteration')
   parser.add_argument('--def_emb_dim', type=int, default=300,
-                      help='emb dim for definition of GO terms')
+                      help='emb dim for definition of GO terms') # pre-trained embedding dimension
+  parser.add_argument('--aux_def_emb_dim', type=int, default=0,
+                      help='initially untrained emb dim for definition of GO terms')
   parser.add_argument('--bilstm_dim', type=int, default=1024,
                       help='lstm output dim')
   parser.add_argument('--word_emb_dim', type=int, default=300,
@@ -44,7 +46,7 @@ def get_args():
   parser.add_argument('--do_gcnn', action='store_true',
                       help='run graph cnn')
   parser.add_argument('--gcnn_dim', type=int, default=300,
-                      help='emb dim for the gcnn vec')
+                      help='emb dim for the gcnn vec') # dimension of gcnn output vector (i think...)
   parser.add_argument('--pretrained_label_emb', type=str, default=None,
                       help='pretrained_label_emb for gcnn')
   parser.add_argument('--do_continue', action='store_true',
