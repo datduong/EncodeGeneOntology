@@ -305,6 +305,8 @@ class LabelProcessorForWrite(DataProcessor):
     counter = 0
     examples = []
     for (i, line) in enumerate(lines):
+      if i == 0: 
+        continue ## skip header
       guid = "%s-%s" % (set_type, counter)
       text_a = line[1]
       name_a = line[0] # name are not used, but good for debug

@@ -218,6 +218,18 @@ for repeat in range( args.epoch ):
 
 
 
+## added code to write out the vector as .txt 
+
+if args.write_vector: 
+  print ('\n\nwrite GO vectors into text, using format of python gensim library')
+  AllLabelDesc = data_loader.LabelProcessorForWrite ()
+  examples = AllLabelDesc.get_examples( args.label_desc_dir ) ## file @label_desc_dir is tab delim 
+  examples = data_loader.convert_label_desc_to_features ( examples , MAX_SEQ_LEN, tokenizer )
+  AllLabelLoader, GO_names = data_loader.label_loader_for_write(examples,64) ## should be able to handle 64 labels at once 
+  label_emb = bert_lm_ent_model.write_label_vector( AllLabelLoader,os.path.join(args.result_folder,"label_vector.txt"), GO_names )
+
+
+
 print ('\n\nload back best model')
 bert_lm_ent_model.load_state_dict( torch.load( os.path.join(args.model_load) ) )
 
@@ -249,4 +261,5 @@ if args.write_score is not None:
   fout = open(args.write_score,"w")
   fout.write( 'score\n'+'\n'.join(str(s) for s in preds) )
   fout.close() 
+
 

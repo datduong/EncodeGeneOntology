@@ -518,6 +518,10 @@ class encoder_model (nn.Module) :
 
     if fout_name is not None:
       fout = open(fout_name,'w')
+      if self.args.reduce_cls_vec: 
+        fout.write(str(len(label_name)) + " " + str(300) + "\n")
+      else: 
+        fout.write(str(len(label_name)) + " " + str(768) + "\n")
 
     label_emb = None
 
@@ -541,7 +545,7 @@ class encoder_model (nn.Module) :
 
       if fout_name is not None:
         for row in range ( label_emb1.shape[0] ) :
-          fout.write( label_name[counter] + "\t" + "\t".join(str(m) for m in label_emb1[row]) + "\n" )
+          fout.write( label_name[counter] + " " + " ".join(str(m) for m in label_emb1[row]) + "\n" ) ## space, because gensim format
           counter = counter + 1
 
       if label_emb is None:
