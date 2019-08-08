@@ -56,10 +56,13 @@ if args.use_cuda:
 
 print ('num of edges {}'.format(edge_index.shape))
 
+
+
 all_name_array = pd.read_csv("go_name_in_obo.csv", header=None)
 all_name_array = list (all_name_array[0])
 
 args.num_label = len(all_name_array)
+
 
 ## **** load label description data ****
 
@@ -84,8 +87,7 @@ else:
 ## **** for the rest, we don't use the "GO:"
 # all_name_array = [ re.sub(r"GO:","",g) for g in all_name_array ]
 
-'''
-# commented out entailment
+
 ## read go terms entailment pairs to train
 
 processor = data_loader.QnliProcessor()
@@ -111,7 +113,6 @@ if args.test_file is None:
   dev_label_dataloader = data_loader.make_data_loader (dev_label_features,batch_size=args.batch_size_label,fp16=args.fp16, sampler='sequential',metric_option=args.metric_option)
   # torch.save( dev_label_dataloader, os.path.join( args.qnli_dir, "dev_label_dataloader"+name_add_on+".pytorch") )
   print ('\ndev_label_examples {}'.format(len(dev_label_examples))) # dev_label_examples 7661
-'''
 
 ## **** make model ****
 
@@ -129,22 +130,36 @@ if args.w2v_emb is not None:
     with open(args.w2v_emb) as f:
       num_of_word, word_vec_dim = [int(x) for x in f.readline().rstrip().split()]
 
-    pretrained_weight_names = [] # GO terms in order
-    pretrained_weight = np.zeros((num_of_word, word_vec_dim))
-    
+    pre_def_emb_dim = word_vec_dim # excludes any unpretrained dim
+
+    pretrained_weight_names_txt = [] # GO terms in order in .txt
+    #pretrained_weight_txt = np.zeros((num_of_word, word_vec_dim))
+    pretrained_weight_d_txt = {} # dict[name] = weight arr
     with open(args.w2v_emb) as f:
       f.readline(); i = 0
       for line in f:
         lineL = line.rstrip().split()
-        pretrained_weight_names.append(lineL[0])
-        pretrained_weight[i,:] = [float(x) for x in lineL[1:]]
+        pretrained_weight_names_txt.append(lineL[0])
+        weight = [float(x) for x in lineL[1:]]
+        #pretrained_weight_txt[i,:] = weight
+        pretrained_weight_d_txt[lineL[0]] = weight
         i += 1
     
     # check order of GO terms matches
-    if pretrained_weight_names != list(all_name_array):
-      print('pretrained_weight: ', pretrained_weight[:4])
-      print('all_name_array: ', all_name_array[:4])
-      print('order of weights doesn\'t match TODO')
+    # if not, reorder and put 0's as placeholders for labels without a pretrained vec (TODO not sure how else to handle missing)
+    if pretrained_weight_names_txt != list(all_name_array):
+      print('num pretrained %d, num all name %d' % (len(pretrained_weight_names_txt), len(all_name_array)) ) 
+      pretrained_weight = np.zeros( (args.num_label, pre_def_emb_dim) )
+      missing_go_msg = "The following GO terms were missing and had 0s put in as a place holder: [ "
+      for i in range(args.num_label):
+        name = all_name_array[i]
+        if name in pretrained_weight_d_txt:
+          pretrained_weight[i,:] = pretrained_weight_d_txt[name]
+        else:
+          missing_go_msg += " %s " % name
+          pretrained_weight[i,:] = np.zeros((pre_def_emb_dim,))
+      missing_go_msg += " ]\n"
+      print(missing_go_msg)
 
   else:
     pretrained_weight = pickle.load(open(args.w2v_emb,'rb')) 
@@ -190,10 +205,10 @@ else:
     model = encoder_model.encoder_model_avepool ( args, metric_pass_to_joint_model[args.metric_option], **other_params )
 
   if args.word_mode == 'pretrained':
-    model = encoder_model.encoder_model_pretrained_embedding ( args, **other_params )
+    model = encoder_model.encoder_model_pretrained_embedding ( args, metric_pass_to_joint_model[args.metric_option], **other_params )
 
   if args.word_mode == 'pretrained_aux':
-    model = encoder_model.encoder_model_extended_embedding ( args, **other_params )
+    model = encoder_model.encoder_model_extended_embedding ( args, metric_pass_to_joint_model[args.metric_option], **other_params )
 
 if args.use_cuda:
   print ('\n\n send model to gpu\n\n')
@@ -228,9 +243,9 @@ processor = data_loader.QnliProcessor()
 
 if args.test_file is None:
   args.test_file = args.qnli_dir,"test"+"_"+args.metric_option+".tsv"
-  dev_label_examples = processor.get_dev_examples(args.test_file)
+  dev_label_examples = processor.get_dev_examples(args.test_file[0],args.test_file[1])
 else: 
-  dev_label_examples = processor.get_test_examples(args.test_file)
+  dev_label_examples = processor.get_test_examples(args.test_file[0],args.test_file[1])
 
 print ('\n\ntest file name{}'.format(args.test_file))
 

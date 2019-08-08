@@ -18,9 +18,11 @@ def get_args():
   parser.add_argument('--epoch', type=int, default=200,
                       help='num of iteration')
   parser.add_argument('--def_emb_dim', type=int, default=300,
-                      help='emb dim for definition of GO terms') # pre-trained embedding dimension
-  parser.add_argument('--aux_def_emb_dim', type=int, default=0,
-                      help='initially untrained emb dim for definition of GO terms')
+                      help='emb dim for definition of GO terms')
+  #parser.add_argument('--pre_def_emb_dim', type=int, default=None,
+  #                    help='pretrained emb dim for definition of GO terms')
+  parser.add_argument('--aux_def_emb_dim', type=int, default=None,
+                      help='additional emb dim to be trained for definition of GO terms')
   parser.add_argument('--bilstm_dim', type=int, default=1024,
                       help='lstm output dim')
   parser.add_argument('--word_emb_dim', type=int, default=300,

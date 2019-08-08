@@ -414,22 +414,24 @@ class encoder_model_pretrained_embedding (encoder_model):
       self.label_embedding = nn.Embedding(kwargs['num_of_word'],kwargs['word_vec_dim'])
       self.label_embedding.weight.data.copy_(torch.from_numpy(kwargs['pretrained_weight']))
     else:
-      print('Must provide pretrained_weight, TODO')
-      self.label_embedding = nn.Embedding(args.num_label,args.def_emb_dim)# just random init atm, or could exit
+      print('ERROR: Must provide pretrained_weight for this model, TODO')
+      #self.label_embedding = nn.Embedding(args.num_label,args.def_emb_dim)# just random init atm, or could exit
+      exit(1)
 
 # add extra dim to label embedding which are trained
 class encoder_model_extended_embedding (encoder_model_pretrained_embedding):
 
-  def __init__(self,args,metric_, **kwargs):
+  def __init__(self,args,metric_module, **kwargs):
 
     super(encoder_model_extended_embedding, self).__init__(args,metric_module,**kwargs)
     self.dropout = nn.Dropout(p=kwargs['dropout'])
+    
     self.aux_label_embedding = nn.Embedding(args.num_label,args.aux_def_emb_dim) ## each label is a vector
     # initially untrained embedding (ex/ if pretrained embedding is dim 300, and additional embedding is dim 100, this is dim 100.)
 
   def gcn_2layer (self,labeldesc_loader,edge_index):
     # pretrained label embeddings are frozen, aux dimensions are trained
-    combined_label_embedding_weight = torch.concat((self.label_embedding.weight, self.aux_label_embedding.weight), 1)
+    combined_label_embedding_weight = torch.cat((self.label_embedding.weight, self.aux_label_embedding.weight), 1)
     node_emb = self.nonlinear_gcnn ( self.gcn1.forward ( self.dropout ( combined_label_embedding_weight  ), edge_index) ) ## take in entire label space at once
 
     return self.gcn2.forward (node_emb, edge_index) ## not relu or tanh in last layer
