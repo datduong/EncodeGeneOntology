@@ -7,6 +7,8 @@ import os
 import sys
 
 from sklearn.metrics import roc_curve, auc, hamming_loss
+from sklearn.metrics import average_precision_score
+
 from tqdm import tqdm
 
 import pickle,gzip
@@ -15,7 +17,7 @@ import fmax
 def all_metrics(yhat, y, k=1, yhat_raw=None, calc_auc=True):
   """
     Inputs:
-      yhat: binary predictions matrix 
+      yhat: binary predictions matrix
       y: binary ground truth matrix
       k: for @k metrics
       yhat_raw: prediction scores matrix (floats)
@@ -32,7 +34,7 @@ def all_metrics(yhat, y, k=1, yhat_raw=None, calc_auc=True):
   yhatmic = yhat.ravel()
   micro = all_micro(yhatmic, ymic)
 
-  metrics = {names[i] + "_macro": macro[i] for i in range(len(macro))} ## dictionary 
+  metrics = {names[i] + "_macro": macro[i] for i in range(len(macro))} ## dictionary
   metrics.update({names[i] + "_micro": micro[i] for i in range(len(micro))})
 
   #AUC and @k
@@ -51,7 +53,10 @@ def all_metrics(yhat, y, k=1, yhat_raw=None, calc_auc=True):
     metrics.update(roc_auc)
 
   metrics['hamming loss'] = hamming_loss(y, yhat)
-  metrics['fmax score'] = fmax.f_max ( y, yhat_raw ) 
+  metrics['fmax score'] = fmax.f_max ( y, yhat_raw )
+  # https://scikit-learn.org/stable/auto_examples/model_selection/plot_precision_recall.html#the-average-precision-score-in-multi-label-settings
+  metrics['macro average prec'] = average_precision_score(y, yhat_raw, average='macro') ## true y, predicted y.
+  metrics['micro average prec'] = average_precision_score(y, yhat_raw, average='micro')
 
   return metrics
 
@@ -181,7 +186,7 @@ def auc_metrics(yhat_raw, y, ymic):
       fpr[i], tpr[i], _ = roc_curve(y[:,i], yhat_raw[:,i])
       if len(fpr[i]) > 1 and len(tpr[i]) > 1:
         auc_score = auc(fpr[i], tpr[i])
-        if not np.isnan(auc_score): 
+        if not np.isnan(auc_score):
           auc_labels["auc_%d" % i] = auc_score
           relevant_labels.append(i)
 
@@ -193,7 +198,7 @@ def auc_metrics(yhat_raw, y, ymic):
 
   #micro-AUC: just look at each individual prediction
   yhatmic = yhat_raw.ravel()
-  fpr["micro"], tpr["micro"], _ = roc_curve(ymic, yhatmic) 
+  fpr["micro"], tpr["micro"], _ = roc_curve(ymic, yhatmic)
   roc_auc["auc_micro"] = auc(fpr["micro"], tpr["micro"])
 
   return roc_auc
@@ -271,4 +276,6 @@ def print_metrics(metrics):
 
   print ('hamming loss {0:.4f}'.format(metrics['hamming loss']))
   print ('fmax score {0:.4f}'.format(metrics['fmax score']))
+  print ('macro average prec {0:.4f}'.format(metrics['macro average prec']))
+  print ('micro average prec {0:.4f}'.format(metrics['micro average prec']))
   print()
