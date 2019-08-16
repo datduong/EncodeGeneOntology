@@ -82,6 +82,25 @@ class cosine_distance_loss (nn.Module):
 
     return loss, score
 
+class GoVectorsDictionary(nn.Module):
+
+  def __init__(self, go_text):
+    super(GoVectorsDictionary, self).__init__()
+
+    self.go = pd.read_csv(go_text, sep='\t')
+    non_formatted_go = self.go.set_index('name').T.to_dict('list')
+    self.go_dict = {}
+    for go_vecs in non_formatted_go:
+       split = non_formatted_go[go_vecs][0].split()
+       float_vec = [float(b) for b in split]
+       self.go_dict[go_vecs] = float_vec
+
+
+  def forward(self, go_terms):
+    go_vectors = [self.go_dict[a] for a in go_terms]
+    return go_vectors
+
+
 
 class encoder_model (nn.Module) :
 
