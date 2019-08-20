@@ -9,7 +9,6 @@ import numpy as np
 from collections import namedtuple
 from tempfile import TemporaryDirectory
 
-import pandas as pd
 import logging
 import json
 
@@ -82,25 +81,6 @@ class cosine_distance_loss (nn.Module):
     #   score = F.cosine_similarity(emb1,emb2,dim=1,eps=.0001) ## not work for fp16 ?? # @score is 1 x batch_size
 
     return loss, score
-
-class GoVectorsDictionary(nn.Module):
-
-  def __init__(self, go_text):
-    super(GoVectorsDictionary, self).__init__()
-
-    self.go = pd.read_csv(go_text, sep='\t')
-    non_formatted_go = self.go.set_index('name').T.to_dict('list')
-    self.go_dict = {}
-    for go_vecs in non_formatted_go:
-       split = non_formatted_go[go_vecs][0].split()
-       float_vec = [float(b) for b in split]
-       self.go_dict[go_vecs] = float_vec
-
-
-  def forward(self, go_terms):
-    go_vectors = [self.go_dict[a] for a in go_terms]
-    return go_vectors
-
 
 
 class encoder_model (nn.Module) :
@@ -249,7 +229,7 @@ class encoder_model (nn.Module) :
   def write_label_vector (self,label_desc_loader,fout_name,label_name):
 
     self.eval()
-    
+
     if fout_name is not None:
       fout = open(fout_name,'w')
 
@@ -257,14 +237,14 @@ class encoder_model (nn.Module) :
 
     counter = 0 ## count the label to be written
     for step, batch in enumerate(tqdm(label_desc_loader, desc="write label desc")):
-      
+
       batch = tuple(t for t in batch)
 
       label_desc1, label_len1, _ = batch
 
       with torch.no_grad():
         label_desc1.data = label_desc1.data[ : , 0:int(max(label_len1)) ] # trim down input to max len of the batch
-      
+
         label_emb1 = self.bilstm_layer(label_desc1.cuda(),label_len1)
         if self.args.reduce_cls_vec:
           label_emb1 = self.metric_module.reduce_vec_dim(label_emb1)
