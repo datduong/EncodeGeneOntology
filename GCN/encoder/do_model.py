@@ -62,7 +62,7 @@ all_name_array = pd.read_csv("go_name_in_obo.csv", header=None)
 all_name_array = list (all_name_array[0])
 
 args.num_label = len(all_name_array)
-
+print('num of names: %d' % args.num_label)
 
 ## **** load label description data ****
 
@@ -126,6 +126,7 @@ other_params = {'dropout': 0.2,
 pretrained_weight = None
 if args.w2v_emb is not None:
   if args.w2v_emb[-4:] == '.txt':
+    print('args.w2v_emb: %s' % args.w2v_emb)
     # assume first line is a header
     with open(args.w2v_emb) as f:
       num_of_word, word_vec_dim = [int(x) for x in f.readline().rstrip().split()]
@@ -147,19 +148,21 @@ if args.w2v_emb is not None:
     
     # check order of GO terms matches
     # if not, reorder and put 0's as placeholders for labels without a pretrained vec (TODO not sure how else to handle missing)
-    if pretrained_weight_names_txt != list(all_name_array):
-      print('num pretrained %d, num all name %d' % (len(pretrained_weight_names_txt), len(all_name_array)) ) 
-      pretrained_weight = np.zeros( (args.num_label, pre_def_emb_dim) )
-      missing_go_msg = "The following GO terms were missing and had 0s put in as a place holder: [ "
-      for i in range(args.num_label):
-        name = all_name_array[i]
-        if name in pretrained_weight_d_txt:
-          pretrained_weight[i,:] = pretrained_weight_d_txt[name]
-        else:
-          missing_go_msg += " %s " % name
-          pretrained_weight[i,:] = np.zeros((pre_def_emb_dim,))
-      missing_go_msg += " ]\n"
-      print(missing_go_msg)
+    # (could refactor assuming order is same)
+    #if pretrained_weight_names_txt != list(all_name_array):
+    print('num pretrained %d, num all name %d' % (len(pretrained_weight_names_txt), len(all_name_array)) ) 
+    pretrained_weight = np.zeros( (args.num_label, pre_def_emb_dim) )
+    missing_go_msg = "The following GO terms were missing and had 0s put in as a place holder: [ "
+    for i in range(args.num_label):
+      name = all_name_array[i]
+      if name in pretrained_weight_d_txt:
+        pretrained_weight[i,:] = pretrained_weight_d_txt[name]
+      else:
+        missing_go_msg += " %s " % name
+        pretrained_weight[i,:] = np.zeros((pre_def_emb_dim,))
+    missing_go_msg += " ]\n"
+    print(missing_go_msg)
+
 
   else:
     pretrained_weight = pickle.load(open(args.w2v_emb,'rb')) 

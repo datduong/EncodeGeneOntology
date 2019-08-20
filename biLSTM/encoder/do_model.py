@@ -39,7 +39,8 @@ MAX_SEQ_LEN = 256
 
 os.chdir(args.main_dir)
 
-all_name_array = pd.read_csv("go_name_in_obo.csv", header=None)
+# added abs path, not in GOmultitask
+all_name_array = pd.read_csv("/local/datdb/goAndGeneAnnotationMar2017/go_name_in_obo.csv", header=None)
 all_name_array = list (all_name_array[0])
 args.num_label = len(all_name_array)
 
@@ -133,6 +134,19 @@ if args.epoch > 0 : ## here we do training
   model.load_state_dict( torch.load( os.path.join(args.result_folder,"best_state_dict.pytorch") ) )
 
 
+## write out the vector as .txt (same as bert do_model)
+
+if args.write_vector: 
+  print ('\n\nwrite GO vectors into text, using format of python gensim library')
+  AllLabelDesc = data_loader.LabelProcessorForWrite ()
+  examples = AllLabelDesc.get_examples( args.label_desc_dir ) ## file @label_desc_dir is tab delim 
+  examples = data_loader.convert_label_desc_to_features ( examples , MAX_SEQ_LEN, tokenizer )
+  AllLabelLoader, GO_names = data_loader.label_loader_for_write(examples,64) ## should be able to handle 64 labels at once 
+  output_fname = AllLabelLoader,os.path.join(args.result_folder,"label_vector_bilstm_%s.txt" % args.metric_option)
+  label_emb = model.write_label_vector( output_fname, GO_names )
+  print('\nwrote GO vectors to %s\n' % output_fname )
+
+
 
 print ('\n\nload test data\n\n')
 
@@ -143,9 +157,11 @@ processor = data_loader.QnliProcessor()
 
 if args.test_file is None:
   args.test_file = args.qnli_dir,"test"+"_"+args.metric_option+".tsv"
-  dev_label_examples = processor.get_dev_examples(args.test_file)
+  # in data loader's get_dev_examples, data_dir arg required, name is a keyword arg
+  # TODO either make name non-keyword, or change input to tuple to match original do_model
+  dev_label_examples = processor.get_dev_examples(args.test_file[0], args.test_file[1])
 else: 
-  dev_label_examples = processor.get_test_examples(args.test_file)
+  dev_label_examples = processor.get_test_examples(args.test_file[0], args.test_file[1])
 
 print ('\n\ntest file name{}'.format(args.test_file))
 
