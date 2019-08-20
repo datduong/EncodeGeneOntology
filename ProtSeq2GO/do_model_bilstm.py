@@ -215,7 +215,11 @@ metric_pass_to_joint_model = {'entailment':ent_model, 'cosine':cosine_loss}
 
 #* **** create bilstm model with yes/no classification ****
 ## init joint model
-GOEncoder = biLSTM_encoder_model.encoder_model ( args, metric_pass_to_joint_model[args.metric_option], biLstm, **other_params )
+GOEncoder = None
+if args.precomputed_vector != None:
+  GOEncoder = biLSTM_encoder_model.GoVectorsDictionary(args.precomputed_vector)
+else:
+  GOEncoder = biLSTM_encoder_model.encoder_model ( args, metric_pass_to_joint_model[args.metric_option], biLstm, **other_params )
 
 print ('see go encoder')
 print (GOEncoder)
@@ -228,8 +232,14 @@ if args.go_enc_model_load is not None:
 if args.fix_go_emb and (args.go_vec_dim > 0):
   GOEncoder.cuda()
   with torch.no_grad():
-    go_emb = GOEncoder.write_label_vector(GO_loader_for_biLSTM,fout_name=None,label_name=None) ## go_emb is num_go x dim, @label_name is only needed if @fout_name is used
-    print ('dim of go vectors {}'.format(go_emb.shape))
+    go_emb = None
+    if args.precomputed_vector == None:
+      go_emb = GOEncoder.write_label_vector(GO_loader_for_biLSTM,fout_name=None,label_name=None) ## go_emb is num_go x dim, @label_name is only needed if @fout_name is used
+    
+      print ('dim of go vectors {}'.format(go_emb.shape))
+    else:
+      go_emb = GOEncoder.forward(GO_name_for_biLSTM)
+
     other_params['go_emb'] = F.normalize( torch.FloatTensor(go_emb),dim=1 ).cuda()
 
 

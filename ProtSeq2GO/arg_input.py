@@ -8,7 +8,6 @@ from pathlib import Path
 def get_args():
   parser = ArgumentParser(
       description='encode label descriptions into vectors')
-
   parser.add_argument('--lr', type=float, default=0.0001,
                       help='learning rate')
   parser.add_argument('--use_2nd_last_layer', action='store_true',
@@ -25,6 +24,8 @@ def get_args():
                       help='emb dim for word')
   parser.add_argument('--bilstm_dim', type=int, default=300,
                       help='emb dim for lstm')
+  parser.add_argument('--precomputed_vector', type=str, default=None,
+                      help='path of seperate vector file')
   parser.add_argument('--prot2seq_model_load', type=str, default=None,
                       help='path to a model to load') 
   parser.add_argument('--label_counter_dict', type=str, default=None,
