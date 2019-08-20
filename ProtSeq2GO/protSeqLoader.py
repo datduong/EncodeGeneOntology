@@ -302,7 +302,6 @@ def IndexBetweenQ25Q75Quantile (label_to_test,count_dict,quant1,quant2) :
       index2extract.append(index)
   return index2extract
 
-
 def GetCountQuantile (count_dict): 
   count = [count_dict[k] for k in count_dict] 
   quant = np.quantile(count,q=[0.25,0.75]) ## probably 2 of these are enough 

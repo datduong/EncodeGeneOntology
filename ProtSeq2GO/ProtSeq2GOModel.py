@@ -173,7 +173,6 @@ class ProtSeq2GOBase (nn.Module):
 
     return self.optim_choice ( [p for n,p in param_list], lr=self.args.lr ) # , momentum=0.9
 
-
   def do_train(self, prot_loader, prot_dev_loader, **kwargs):
     torch.cuda.empty_cache()
 
@@ -305,21 +304,35 @@ class ProtSeq2GOBase (nn.Module):
     trackF1macro = {}
     trackF1micro = {} # metrics["f1_micro"]
 
+    trackMacroPrecision = {} # [MACRO] accuracy, precision, recall
+    trackMacroRecall = {}
+
+    trackMicroPrecision = {}
+    trackMicroRecall = {}
+
     for round_cutoff in np.arange(.1,1,.1):
 
       print ('\n\nround cutoff {}'.format(round_cutoff))
 
       preds_round = 1.0*( round_cutoff < preds ) ## converted into 0/1
 
-      result = evaluation_metric.all_metrics ( preds_round , all_label_ids, yhat_raw=preds, k=self.args.top_k)
+      result = evaluation_metric.all_metrics ( preds_round , all_label_ids, yhat_raw=preds, k=[5,10,15,20]) ## we can pass vector of P@k and R@k
       evaluation_metric.print_metrics( result )
 
       if 'full_data' not in trackF1macro:
         trackF1macro['full_data'] = [result["f1_macro"]]
         trackF1micro['full_data'] = [result["f1_micro"]]
+        trackMacroPrecision['full_data'] = [result["prec_macro"]]
+        trackMicroPrecision['full_data'] = [result["prec_micro"]]
+        trackMacroRecall['full_data'] = [result["rec_macro"]]
+        trackMicroRecall['full_data'] = [result["rec_micro"]]
       else:
         trackF1macro['full_data'].append(result["f1_macro"])
         trackF1micro['full_data'].append(result["f1_micro"])
+        trackMacroPrecision['full_data'].append(result["prec_macro"])
+        trackMicroPrecision['full_data'].append(result["prec_micro"])
+        trackMacroRecall['full_data'].append(result["rec_macro"])
+        trackMicroRecall['full_data'].append(result["rec_micro"])
 
       if 'GoCount' in kwargs :
         print ('\n\nsee if method improves accuracy conditioned on frequency of GO terms')
@@ -336,21 +349,41 @@ class ProtSeq2GOBase (nn.Module):
           if cutoff not in trackF1macro:
             trackF1macro[cutoff] = [result["f1_macro"]]
             trackF1micro[cutoff] = [result["f1_micro"]]
+            trackMacroPrecision[cutoff] = [result["prec_macro"]]
+            trackMicroPrecision[cutoff] = [result["prec_micro"]]
+            trackMacroRecall[cutoff] = [result["rec_macro"]]
+            trackMicroRecall[cutoff] = [result["rec_micro"]]
           else:
             trackF1macro[cutoff].append(result["f1_macro"])
             trackF1micro[cutoff].append(result["f1_micro"])
+            trackMacroPrecision[cutoff].append(result["prec_macro"])
+            trackMicroPrecision[cutoff].append(result["prec_micro"])
+            trackMacroRecall[cutoff].append(result["rec_macro"])
+            trackMicroRecall[cutoff].append(result["rec_micro"])
 
 
     ##
-    print ('\n\ntracking f1 compile into list')
+    print ('\n\ntracking f1 compile into list\n')
 
-    print ('\nmacro')
+    # print ('\nmacro f1 prec rec')
     for k,v in trackF1macro.items():
-      print (k + " " + " ".join(str(s) for s in v))
+      print ('macroF1 ' + k + " " + " ".join(str(s) for s in v))
 
-    print ('\nmicro')
+    for k,v in trackMacroPrecision.items():
+      print ('macroPrec ' + k + " " + " ".join(str(s) for s in v))
+
+    for k,v in trackMacroRecall.items():
+      print ('macroRec ' + k + " " + " ".join(str(s) for s in v))
+
+    # print ('\nmicro f1 prec rec')
     for k,v in trackF1micro.items():
-      print (k + " " + " ".join(str(s) for s in v))
+      print ('microF1 ' + k + " " + " ".join(str(s) for s in v))
+
+    for k,v in trackMicroPrecision.items():
+      print ('microPrec ' + k + " " + " ".join(str(s) for s in v))
+
+    for k,v in trackMicroRecall.items():
+      print ('microRec ' + k + " " + " ".join(str(s) for s in v))
 
     return result, preds, tr_loss
 

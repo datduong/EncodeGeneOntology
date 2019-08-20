@@ -229,7 +229,7 @@ class encoder_model (nn.Module) :
   def write_label_vector (self,label_desc_loader,fout_name,label_name):
 
     self.eval()
-    
+
     if fout_name is not None:
       fout = open(fout_name,'w')
 
@@ -237,14 +237,14 @@ class encoder_model (nn.Module) :
 
     counter = 0 ## count the label to be written
     for step, batch in enumerate(tqdm(label_desc_loader, desc="write label desc")):
-      
+
       batch = tuple(t for t in batch)
 
       label_desc1, label_len1, _ = batch
 
       with torch.no_grad():
         label_desc1.data = label_desc1.data[ : , 0:int(max(label_len1)) ] # trim down input to max len of the batch
-      
+
         label_emb1 = self.bilstm_layer(label_desc1.cuda(),label_len1)
         if self.args.reduce_cls_vec:
           label_emb1 = self.metric_module.reduce_vec_dim(label_emb1)

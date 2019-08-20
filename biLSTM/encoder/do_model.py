@@ -148,6 +148,8 @@ if args.write_vector:
 
 
 
+print ('\n\nwrite emb')
+
 print ('\n\nload test data\n\n')
 
 # get label-label entailment data
