@@ -310,7 +310,13 @@ class ProtSeq2GOBase (nn.Module):
     trackMicroPrecision = {}
     trackMicroRecall = {}
 
-    for round_cutoff in np.arange(.1,1,.1):
+    ## DO NOT NEED TO DO THIS ALL THE TIME DURING TRAINING 
+    if self.args.not_train: 
+      rounding = np.arange(.1,1,.1)
+    else: 
+      rounding = [0.5]
+
+    for round_cutoff in rounding:
 
       print ('\n\nround cutoff {}'.format(round_cutoff))
 
@@ -363,27 +369,28 @@ class ProtSeq2GOBase (nn.Module):
 
 
     ##
-    print ('\n\ntracking f1 compile into list\n')
+    if self.args.not_train : 
+      print ('\n\ntracking f1 compile into list\n')
 
-    # print ('\nmacro f1 prec rec')
-    for k,v in trackF1macro.items():
-      print ('macroF1 ' + k + " " + " ".join(str(s) for s in v))
+      # print ('\nmacro f1 prec rec')
+      for k,v in trackF1macro.items():
+        print ('macroF1 ' + k + " " + " ".join(str(s) for s in v))
 
-    for k,v in trackMacroPrecision.items():
-      print ('macroPrec ' + k + " " + " ".join(str(s) for s in v))
+      for k,v in trackMacroPrecision.items():
+        print ('macroPrec ' + k + " " + " ".join(str(s) for s in v))
 
-    for k,v in trackMacroRecall.items():
-      print ('macroRec ' + k + " " + " ".join(str(s) for s in v))
+      for k,v in trackMacroRecall.items():
+        print ('macroRec ' + k + " " + " ".join(str(s) for s in v))
 
-    # print ('\nmicro f1 prec rec')
-    for k,v in trackF1micro.items():
-      print ('microF1 ' + k + " " + " ".join(str(s) for s in v))
+      # print ('\nmicro f1 prec rec')
+      for k,v in trackF1micro.items():
+        print ('microF1 ' + k + " " + " ".join(str(s) for s in v))
 
-    for k,v in trackMicroPrecision.items():
-      print ('microPrec ' + k + " " + " ".join(str(s) for s in v))
+      for k,v in trackMicroPrecision.items():
+        print ('microPrec ' + k + " " + " ".join(str(s) for s in v))
 
-    for k,v in trackMicroRecall.items():
-      print ('microRec ' + k + " " + " ".join(str(s) for s in v))
+      for k,v in trackMicroRecall.items():
+        print ('microRec ' + k + " " + " ".join(str(s) for s in v))
 
     return result, preds, tr_loss
 
