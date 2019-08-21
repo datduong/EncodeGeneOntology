@@ -100,6 +100,55 @@ class GoVectorsDictionary(nn.Module):
     go_vectors = [self.go_dict[a] for a in go_terms]
     return go_vectors
 
+  def do_eval(self, train_dataloader):
+    torch.cuda.empty_cache()
+    self.eval()
+
+    tr_loss = 0
+    preds = []
+    all_label_ids = []
+
+    ## for each batch
+    for step, batch in enumerate(tqdm(train_dataloader, desc="eval")):
+
+      with torch.no_grad():
+        batch = tuple(t for t in batch)
+
+        label_desc1, label_len1, label_mask1, label_desc2, label_len2, label_mask2, label_ids = batch
+
+        label_vec_left = self.bilstm_layer (label_desc1.cuda(),label_len1)
+        label_vec_right = self.bilstm_layer (label_desc2.cuda(),label_len2)
+
+        loss, score = self.metric_module.forward(label_vec_left, label_vec_right, true_label=label_ids.cuda())
+
+
+      tr_loss = tr_loss + loss
+
+      if len(preds) == 0:
+        preds.append(score.detach().cpu().numpy())
+        all_label_ids.append(label_ids.detach().cpu().numpy())
+      else:
+        preds[0] = np.append(preds[0], score.detach().cpu().numpy(), axis=0)
+        all_label_ids[0] = np.append(all_label_ids[0], label_ids.detach().cpu().numpy(), axis=0) # row array
+
+    # end eval
+    all_label_ids = all_label_ids[0]
+    preds = preds[0]
+
+    if self.metric_option == 'entailment':
+      preds = softmax(preds, axis=1) ## softmax, return both prob of 0 and 1 for each label
+
+    print (preds)
+    print (all_label_ids)
+
+    result = 0
+    if self.args.test_file is None: ## save some time
+      result = acc_and_f1(preds, all_label_ids, self.metric_option) ## interally, we will take care of the case of @entailment vs @cosine
+      for key in sorted(result.keys()):
+        print("%s=%s" % (key, str(result[key])))
+
+    return result, preds, tr_loss
+
 
 
 class encoder_model (nn.Module) :
