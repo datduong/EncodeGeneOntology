@@ -14,6 +14,8 @@ import json
 
 from scipy.special import softmax
 
+import pandas as pd
+
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -81,13 +83,13 @@ class cosine_distance_loss (nn.Module):
 
     return loss, score
 
-class EncoderModel(nn.Module):
+class encoder_model(nn.Module):
 
   def __init__(self, args, metric_model, **kwargs):
-    super(EncoderModel, self).__init__()
+    super(encoder_model, self).__init__()
 
     self.metric_option = kwargs['metric_option'] ## should be 'entailment' or 'cosine'
-    self.metric_module = metric_module
+    self.metric_module = metric_model
     self.args = args
     self.go = pd.read_csv(self.args.vector_file, sep='\t')
     non_formatted_go = self.go.set_index('name').T.to_dict('list')
@@ -105,7 +107,7 @@ class EncoderModel(nn.Module):
   def convertToString(label_names):
     act_label_names = []
     for go_num in label_names:
-      st = str(go_num)
+      st = str(go_num.item())
       st_len = len(st)
       for i in range(st_len, 7):
         st = '0' + st
@@ -134,7 +136,7 @@ class EncoderModel(nn.Module):
         label_vec_left = self.forward(actual_one_names)
         label_vec_right = self.forward(actual_two_names)
 
-        loss, score = self.metric_module.forward(label_vec_left, label_vec_right, true_label=label_ids.cuda())
+        loss, score = self.metric_module.forward(label_vec_left.cuda(), label_vec_right.cuda(), true_label=label_ids.cuda())
 
 
       tr_loss = tr_loss + loss

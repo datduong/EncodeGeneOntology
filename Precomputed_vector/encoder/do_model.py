@@ -27,7 +27,7 @@ from torch_geometric.nn import GCNConv
 
 sys.path.append("/local/datdb/GOmultitask")
 
-import biLSTM.encoder.arg_input as arg_input
+import Precomputed_vector.encoder.arg_input as arg_input
 args = arg_input.get_args()
 
 import Precomputed_vector.encoder.data_loader as data_loader

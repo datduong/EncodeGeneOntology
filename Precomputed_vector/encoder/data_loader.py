@@ -279,9 +279,12 @@ def make_data_loader (train_features,batch_size,fp16=False,sampler='random',metr
 
   all_input_1_ids = torch.tensor([f.input_1_ids for f in train_features], dtype=torch.long)
   all_input_2_ids = torch.tensor([f.input_2_ids for f in train_features], dtype=torch.long)
-
-  all_input_1_name = torch.tensor([int(f.input_1_name[3:]) for f in train_features], dtype=torch.integer)
-  all_input_2_name = torch.tensor([int(f.input_2_name[3:]) for f in train_features], dtype=torch.integer)
+  
+  name_1 = [f.input_1_name for f in train_features]
+  name_2 = [f.input_2_name for f in train_features]
+  all_input_1_name = torch.tensor([int(f[3:]) for f in name_1], dtype=torch.int)
+  all_input_2_name = torch.tensor([int(f[3:]) for f in name_2], dtype=torch.int)
+  
   all_input_1_len = torch.tensor([f.input_1_len for f in train_features], dtype=torch.float)
   all_input_2_len = torch.tensor([f.input_2_len for f in train_features], dtype=torch.float)
 
@@ -381,8 +384,8 @@ def convert_label_desc_to_features(examples, max_seq_length, tokenizer):
 
 
 def label_loader_for_write (train_features,batch_size,fp16=False): 
-
-  all_input_1_name = torch.tensor([int(f.input_1_name[3:]) for f in train_features], dtype=torch.integer) ## same order as @train_sampler
+  name_1 = [f.input_1_name for f in train_features]
+  all_input_1_name = torch.tensor([int(f[3:]) for f in name_1], dtype=torch.int) ## same order as @train_sampler
 
   all_input_1_ids = torch.tensor([f.input_1_ids for f in train_features], dtype=torch.long)
 
