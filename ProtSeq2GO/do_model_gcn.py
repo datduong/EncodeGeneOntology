@@ -152,10 +152,23 @@ other_params = {'dropout': 0.2,
 pretrained_weight = None
 if args.w2v_emb is not None:
   pretrained_weight = pickle.load(open(args.w2v_emb,'rb'))
-  pretrained_weight.shape[0]
-  other_params ['num_of_word'] = pretrained_weight.shape[0]
-  other_params ['word_vec_dim'] = pretrained_weight.shape[1]
-  other_params ['pretrained_weight'] = pretrained_weight
+
+  try: ## load standard pickle that is already in numpy
+    pretrained_weight.shape[0] ## will throw error if load in file is not a matrix
+  except: ## onto2vec is dictionary {go:vec}
+    temp = np.zeros((len(all_name_array), args.def_emb_dim ))
+    for index,go in enumerate (all_name_array):  ## must keep this exact order
+      if go not in pretrained_weight: 
+        go = re.sub("GO:","",go)
+      # enforce strict "GO:xyz" but onto2vec doesn't have this
+      temp[index] = pretrained_weight[go]
+
+    ## now we get word dim and so forth
+    pretrained_weight = temp ## override
+    other_params ['num_of_word'] = pretrained_weight.shape[0]
+    other_params ['word_vec_dim'] = pretrained_weight.shape[1]
+    other_params ['pretrained_weight'] = pretrained_weight
+
 
 
 ## **** load GO count dictionary data
@@ -182,7 +195,12 @@ cosine_loss = GCN_encoder_model.cosine_distance_loss(args.gcnn_dim,args.gcnn_dim
 metric_pass_to_joint_model = {'entailment':None, 'cosine':cosine_loss}
 
 ## make GCN model
-GOEncoder = GCN_encoder_model.encoder_model ( args, metric_pass_to_joint_model[args.metric_option], **other_params )
+if args.w2v_emb is None:
+  GOEncoder = GCN_encoder_model.encoder_model ( args, metric_pass_to_joint_model[args.metric_option], **other_params )
+else: 
+  if args.word_mode == 'PretrainedGO':
+    GOEncoder = GCN_encoder_model.encoder_model_extended_embedding ( args, metric_pass_to_joint_model[args.metric_option], **other_params )
+
 
 if args.go_enc_model_load is not None:
   print ('\n\nload back best model for GO encoder {}'.format(args.go_enc_model_load))

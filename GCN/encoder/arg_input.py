@@ -45,6 +45,8 @@ def get_args():
                       help='run graph cnn')
   parser.add_argument('--gcnn_dim', type=int, default=300,
                       help='emb dim for the gcnn vec')
+  parser.add_argument('--gcn_native_emb_dim', type=int, default=300,
+                      help='emb dim for the gcnn vec')
   parser.add_argument('--pretrained_label_emb', type=str, default=None,
                       help='pretrained_label_emb for gcnn')
   parser.add_argument('--do_continue', action='store_true',

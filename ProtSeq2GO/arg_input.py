@@ -8,6 +8,7 @@ from pathlib import Path
 def get_args():
   parser = ArgumentParser(
       description='encode label descriptions into vectors')
+
   parser.add_argument('--lr', type=float, default=0.0001,
                       help='learning rate')
   parser.add_argument('--use_2nd_last_layer', action='store_true',
@@ -24,8 +25,10 @@ def get_args():
                       help='emb dim for word')
   parser.add_argument('--bilstm_dim', type=int, default=300,
                       help='emb dim for lstm')
-  parser.add_argument('--precomputed_vector', type=str, default=None,
-                      help='path of seperate vector file')
+  parser.add_argument('--gcn_native_emb_dim', type=int, default=300,
+                      help='emb dim for the gcnn vec')
+  parser.add_argument('--word_mode', type=str, default=None,
+                      help='do we use bilstm or avepool')
   parser.add_argument('--prot2seq_model_load', type=str, default=None,
                       help='path to a model to load') 
   parser.add_argument('--label_counter_dict', type=str, default=None,
@@ -48,6 +51,8 @@ def get_args():
                       help='do not train word emb')
   parser.add_argument('--not_train', action='store_true', ## some dumb error in 1st run, so we add this to do testing only
                       help='not_train model, here do testing only')
+  parser.add_argument('--precomputed_vector', type=str, default=None,
+                      help='path of some pretrained GO vector tab sep. or pickle')
   parser.add_argument('--metric_option', type=str,
                       help='cosine or entailment')
   parser.add_argument('--test_file', type=str, default=None,

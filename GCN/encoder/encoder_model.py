@@ -9,6 +9,8 @@ import numpy as np
 from collections import namedtuple
 from tempfile import TemporaryDirectory
 
+from copy import deepcopy 
+
 import logging
 import json
 
@@ -129,6 +131,7 @@ class encoder_model (nn.Module) :
 
   def make_optimizer (self):
     if self.args.fix_word_emb:
+      print ([n for n,p in self.named_parameters () if "label_embedding" not in n])
       return torch.optim.Adam ( [p for n,p in self.named_parameters () if "label_embedding" not in n] , lr=self.args.lr )
     else:
       return torch.optim.Adam ( self.parameters(), lr=self.args.lr )
@@ -141,6 +144,11 @@ class encoder_model (nn.Module) :
 
     eval_acc = 0
     lowest_dev_loss = np.inf
+
+    ## original values, sanity test if they update or not depending on the optim option
+    gcn_native_emb_t0 = deepcopy ( self.gcn_native_emb.weight ) 
+    label_embedding_t0 = deepcopy ( self.label_embedding.weight )
+
 
     for epoch in range( int(self.args.epoch)) :
 
@@ -165,6 +173,23 @@ class encoder_model (nn.Module) :
         loss, _ = self.metric_module.forward(label_emb[label_id_number_left], label_emb[label_id_number_right], true_label=label_ids.cuda())
 
         loss.backward()
+
+        # print ('\nsee gcn_native_emb value/grad step {}'.format(step))
+        # print (self.gcn_native_emb.weight)
+        # # print (self.gcn_native_emb.weight.grad)
+        # print ('diff {}'.format( torch.sum( torch.abs( self.gcn_native_emb.weight - x1 ) )) )
+
+        # print ('\nsee label_embedding value/grad {}'.format(step))
+        # print (self.label_embedding.weight)
+        # # print (self.label_embedding.weight.grad)
+        # print ('diff {}'.format( torch.sum( torch.abs ( self.label_embedding.weight - x2 ) )) )
+
+        # if step > 100: 
+        #   print ('see 1st gcn_native_emb and label_emb ')
+        #   print (x1)
+        #   print (x2)
+        #   exit() 
+
         optimizer.step()
         optimizer.zero_grad()
 
@@ -172,6 +197,9 @@ class encoder_model (nn.Module) :
 
       ## end epoch
       print ("\ntrain epoch {} loss {}".format(epoch,tr_loss))
+      print ('see diff of 1st gcn_native_emb and label_emb to current point')
+      print ('gcn_native_emb diff {}'.format( torch.sum( torch.abs( self.gcn_native_emb.weight - gcn_native_emb_t0 ) )) )
+      print ('label_emb diff {}'.format( torch.sum( torch.abs ( self.label_embedding.weight - label_embedding_t0 ) )) )
 
       # eval at each epoch
       # print ('\neval on train data epoch {}'.format(epoch))
@@ -403,6 +431,37 @@ class encoder_model_biLstm (encoder_model):
     return self.gcn2.forward (node_emb, edge_index) ## not relu or tanh in last layer
 
 
+# add extra dim to label embedding which are trained
+class encoder_model_extended_embedding (encoder_model):
+
+  def __init__(self,args,metric_module, **kwargs):
+
+    super(encoder_model_extended_embedding, self).__init__(args,metric_module,**kwargs)
+
+    if 'pretrained_weight' in kwargs:
+      self.label_embedding = nn.Embedding(kwargs['num_of_word'],kwargs['word_vec_dim'])
+      self.label_embedding.weight.data.copy_(torch.from_numpy(kwargs['pretrained_weight']))
+      # freeze emb by doing @fix_word_emb
+      # No need... self.label_embedding.requires_grad=False ## turn of gradient here ? 
+    else:
+      print('\n\nERROR: Must provide pretrained_weight for this model\n\n')
+      exit()
+
+    self.gcn1 = GCNConv(args.def_emb_dim + args.gcn_native_emb_dim , args.gcnn_dim)
+    self.gcn2 = GCNConv(args.gcnn_dim, args.gcnn_dim)
+
+    self.dropout = nn.Dropout(p=kwargs['dropout'])
+
+    ## let gcn capture information not found in BERT or BiLSTM or whatever. 
+    self.gcn_native_emb = nn.Embedding(args.num_label,args.gcn_native_emb_dim) 
+    self.gcn_native_emb.weight.data.normal_(mean=0.0, std=0.2)
+
+  def gcn_2layer (self,labeldesc_loader,edge_index):
+    # pretrained label embeddings are frozen, aux dimensions are trained
+    combined_embed = torch.cat((self.label_embedding.weight, self.gcn_native_emb.weight), 1)
+    node_emb = self.nonlinear_gcnn ( self.gcn1.forward ( self.dropout ( combined_embed  ), edge_index) ) ## take in entire label space at once
+
+    return self.gcn2.forward (node_emb, edge_index) ## not relu or tanh in last layer
 
 
 

@@ -134,6 +134,8 @@ if args.epoch > 0 : ## here we do training
 
 
 
+print ('\n\nwrite emb')
+
 print ('\n\nload test data\n\n')
 
 # get label-label entailment data

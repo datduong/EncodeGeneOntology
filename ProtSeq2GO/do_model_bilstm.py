@@ -220,8 +220,7 @@ GOEncoder = biLSTM_encoder_model.encoder_model ( args, metric_pass_to_joint_mode
 print ('see go encoder')
 print (GOEncoder)
 
-
-if args.go_enc_model_load is not None:
+if (args.precomputed_vector is None) and (args.go_enc_model_load is not None): ## may see error if we load pretrained GO vec
   print ('\n\nload back best model for GO encoder {}'.format(args.go_enc_model_load))
   GOEncoder.load_state_dict( torch.load( args.go_enc_model_load ), strict=False )
 
@@ -231,6 +230,7 @@ if args.fix_go_emb and (args.go_vec_dim > 0):
     go_emb = GOEncoder.write_label_vector(GO_loader_for_biLSTM,fout_name=None,label_name=None) ## go_emb is num_go x dim, @label_name is only needed if @fout_name is used
     print ('dim of go vectors {}'.format(go_emb.shape))
 
+    print ('dim of go vectors {}'.format(go_emb.shape))
     other_params['go_emb'] = F.normalize( torch.FloatTensor(go_emb),dim=1 ).cuda()
 
 
