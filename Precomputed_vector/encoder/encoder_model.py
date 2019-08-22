@@ -3,7 +3,7 @@
 from __future__ import unicode_literals, print_function, division
 from io import open
 import unicodedata
-import string, re, sys, os, pickle
+import string, re, sys, os
 from tqdm import tqdm
 import numpy as np
 from collections import namedtuple
@@ -13,6 +13,8 @@ import logging
 import json
 
 from scipy.special import softmax
+
+import pandas as pd
 
 import torch
 import torch.nn as nn
@@ -28,9 +30,6 @@ from torch.nn import CrossEntropyLoss, MSELoss
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import matthews_corrcoef, f1_score
 
-import pandas as pd
-
-import biLSTM.encoder.bi_lstm_model as bi_lstm_model
 
 def simple_accuracy(preds, labels):
   return (preds == labels).mean()
@@ -84,102 +83,39 @@ class cosine_distance_loss (nn.Module):
 
     return loss, score
 
+class encoder_model(nn.Module):
 
-class encoder_model (nn.Module) :
-
-  def __init__(self,args,metric_module,biLstm,**kwargs):
-
-    # metric_module is either @entailment_model or cosine distance.
-    # we observe that entailment_model doesn't directly ensure the same labels to have the same vectors. entailment_model pass concatenate v1,v2,v1*v2,abs(v1-v2) into an MLP
-
+  def __init__(self, args, metric_model, **kwargs):
     super(encoder_model, self).__init__()
 
     self.metric_option = kwargs['metric_option'] ## should be 'entailment' or 'cosine'
-    self.metric_module = metric_module
-
+    self.metric_module = metric_model
     self.args = args
-
-    self.word_embedding = nn.Embedding(kwargs['num_of_word'],kwargs['word_vec_dim']) ## word embedding
-    if 'pretrained_weight' in kwargs:
-      self.word_embedding.weight.data.copy_(torch.from_numpy(kwargs['pretrained_weight']))
-
-    self.biLstm = biLstm
-    self.dropout = nn.Dropout (kwargs['dropout'])
-
-    self.optimizer = None
+    self.go = pd.read_csv(self.args.vector_file, sep='\t')
+    non_formatted_go = self.go.set_index('name').T.to_dict('list')
+    self.go_dict = {}
+    for go_vecs in non_formatted_go:
+       split = non_formatted_go[go_vecs][0].split()
+       float_vec = [float(b) for b in split]
+       self.go_dict[go_vecs] = float_vec
 
 
-  def bilstm_layer (self,label_idx,label_len):
-    label_emb = self.word_embedding(label_idx) # get word vector for each label
-    label_emb = self.dropout(label_emb)
-    return self.biLstm.forward(label_emb,label_len) # one vector for each label, so batch x dim
+  def forward(self, go_terms):
+    go_vectors = [self.go_dict[a] for a in go_terms]
+    return go_vectors
 
-  def make_optimizer (self):
-    if self.args.fix_word_emb:
-      return torch.optim.Adam ( [p for n,p in self.named_parameters () if "word_embedding" not in n] , lr=self.args.lr )
-    else:
-      return torch.optim.Adam ( self.parameters(), lr=self.args.lr )
+  def convertToString(label_names):
+    act_label_names = []
+    for go_num in label_names:
+      st = str(go_num.item())
+      st_len = len(st)
+      for i in range(st_len, 7):
+        st = '0' + st
+      st = 'GO:' + st
+      act_label_name.append(st)
+    return act_label_names    
 
-  def do_train(self,train_dataloader,dev_dataloader=None):
-
-    torch.cuda.empty_cache()
-
-    optimizer = self.make_optimizer()
-
-    eval_acc = 0
-    lowest_dev_loss = np.inf
-
-    for epoch in range( int(self.args.epoch)) :
-
-      self.train()
-      tr_loss = 0
-
-      ## for each batch
-      for step, batch in enumerate(tqdm(train_dataloader, desc="ent. epoch {}".format(epoch))):
-
-        batch = tuple(t for t in batch)
-
-        label_desc1, label_len1, label_mask1, label_desc2, label_len2, label_mask2, label_ids = batch
-
-        label_vec_left = self.bilstm_layer (label_desc1.cuda(),label_len1)
-        label_vec_right = self.bilstm_layer (label_desc2.cuda(),label_len2)
-
-        ## need to backprop somehow
-        ## predict the class bio/molec/cellcompo ?
-        ## predict if 2 labels are similar ? ... sort of doing the same thing as gcn already does
-        loss, _ = self.metric_module.forward(label_vec_left, label_vec_right, true_label=label_ids.cuda())
-
-        loss.backward()
-        optimizer.step()
-        optimizer.zero_grad()
-
-        tr_loss = tr_loss + loss
-
-      ## end epoch
-      print ("\ntrain epoch {} loss {}".format(epoch,tr_loss))
-
-      # eval at each epoch
-      # print ('\neval on train data epoch {}'.format(epoch))
-      # result, _ , _ = self.do_eval(train_dataloader,labeldesc_loader,edge_index)
-
-      print ('\neval on dev data epoch {}'.format(epoch))
-      result, preds, dev_loss = self.do_eval(dev_dataloader)
-
-      if dev_loss < lowest_dev_loss :
-        lowest_dev_loss = dev_loss
-        print ("save best, lowest dev loss {}".format(lowest_dev_loss))
-        torch.save(self.state_dict(), os.path.join(self.args.result_folder,"best_state_dict.pytorch"))
-        last_best_epoch = epoch
-
-      if epoch - last_best_epoch > 20:
-        print ('\n\n\n**** break early \n\n\n')
-        print ('')
-        return tr_loss
-
-    return tr_loss ## last train loss
-
-  def do_eval(self,train_dataloader):
-
+  def do_eval(self, train_dataloader):
     torch.cuda.empty_cache()
     self.eval()
 
@@ -193,12 +129,14 @@ class encoder_model (nn.Module) :
       with torch.no_grad():
         batch = tuple(t for t in batch)
 
-        label_desc1, label_len1, label_mask1, label_desc2, label_len2, label_mask2, label_ids = batch
+        label_one_names, label_desc1, label_len1, label_mask1, label_two_names, label_desc2, label_len2, label_mask2, label_ids = batch
 
-        label_vec_left = self.bilstm_layer (label_desc1.cuda(),label_len1)
-        label_vec_right = self.bilstm_layer (label_desc2.cuda(),label_len2)
+        actual_one_names = self.convertToString(label_one_names)
+        actual_two_names = self.convertToString(label_two_names)
+        label_vec_left = self.forward(actual_one_names)
+        label_vec_right = self.forward(actual_two_names)
 
-        loss, score = self.metric_module.forward(label_vec_left, label_vec_right, true_label=label_ids.cuda())
+        loss, score = self.metric_module.forward(label_vec_left.cuda(), label_vec_right.cuda(), true_label=label_ids.cuda())
 
 
       tr_loss = tr_loss + loss
@@ -231,7 +169,7 @@ class encoder_model (nn.Module) :
   def write_label_vector (self,label_desc_loader,fout_name,label_name):
 
     self.eval()
-
+    
     if fout_name is not None:
       fout = open(fout_name,'w')
 
@@ -239,15 +177,15 @@ class encoder_model (nn.Module) :
 
     counter = 0 ## count the label to be written
     for step, batch in enumerate(tqdm(label_desc_loader, desc="write label desc")):
-
+      
       batch = tuple(t for t in batch)
 
-      label_desc1, label_len1, _ = batch
+      label_names1, label_desc1, label_len1, _ = batch
 
       with torch.no_grad():
         label_desc1.data = label_desc1.data[ : , 0:int(max(label_len1)) ] # trim down input to max len of the batch
-
-        label_emb1 = self.bilstm_layer(label_desc1.cuda(),label_len1)
+        actual_one_names = self.convertToString(label_names1)
+        label_emb1 = self.forward(actual_one_names)
         if self.args.reduce_cls_vec:
           label_emb1 = self.metric_module.reduce_vec_dim(label_emb1)
 
@@ -267,6 +205,3 @@ class encoder_model (nn.Module) :
       fout.close()
 
     return label_emb
-
-
-
