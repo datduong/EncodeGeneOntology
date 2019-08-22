@@ -144,7 +144,7 @@ else:
   LabelSamples = GCN_data_loader.convert_labels_to_features(LabelSamples, MAX_SEQ_LEN_LABEL_DEF, Vocab, all_name_array=label_to_test, tokenize_style='space')
 
 
-GO_loader_for_biLSTM, GO_name_for_biLSTM = GCN_data_loader.make_label_loader (LabelSamples,args.batch_size_bert,fp16=False) ## if we fix encoder, then we don't have to worry about batch size, should be able to handle 32 or even 64
+GO_loader_for_precomp, GO_name_for_precomp = GCN_data_loader.make_label_loader (LabelSamples,args.batch_size_bert,fp16=False) ## if we fix encoder, then we don't have to worry about batch size, should be able to handle 32 or even 64
 
 
 ## **** load protein data
@@ -215,7 +215,12 @@ metric_pass_to_joint_model = {'entailment':ent_model, 'cosine':cosine_loss}
 
 #* **** create bilstm model with yes/no classification ****
 ## init joint model
-GOEncoder = biLSTM_encoder_model.encoder_model ( args, metric_pass_to_joint_model[args.metric_option], biLstm, **other_params )
+GOEncoder = None
+if args.precomputed_vector != None:
+  GOEncoder = biLSTM_encoder_model.GoVectorsDictionary(args.precomputed_vector)
+else:
+  print('need precomputed vector file')
+  exit(1)
 
 print ('see go encoder')
 print (GOEncoder)
@@ -228,8 +233,13 @@ if args.go_enc_model_load is not None:
 if args.fix_go_emb and (args.go_vec_dim > 0):
   GOEncoder.cuda()
   with torch.no_grad():
-    go_emb = GOEncoder.write_label_vector(GO_loader_for_biLSTM,fout_name=None,label_name=None) ## go_emb is num_go x dim, @label_name is only needed if @fout_name is used
-    print ('dim of go vectors {}'.format(go_emb.shape))
+    go_emb = None
+    if args.precomputed_vector != None:
+      go_emb = GOEncoder.forward(GO_name_for_precomp) ## go_emb is num_go x dim, @label_name is only needed if @fout_name is used
+    
+    else:
+      print('need precomputed_vector file')
+      exit(1)
 
     other_params['go_emb'] = F.normalize( torch.FloatTensor(go_emb),dim=1 ).cuda()
 
