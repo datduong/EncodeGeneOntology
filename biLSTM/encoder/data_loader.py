@@ -56,7 +56,7 @@ def bert_tokenizer_style(tokenizer,text_a, add_cls_sep=True):
   return input_1_ids , len(input_1_ids)
 
 
-def icd9_tokenizer_style (vocab,text_a):
+def space_tokenizer_style (vocab,text_a):
   # we follow same tokenization approach in original paper
   # @Vocab is some object that convert words to index exactly in the order of the pretrained word vectors.
   # use Vocab = load_vocab('/local/datdb/MIMIC3database/format10Jan2019/vocab+icd_index_map.txt')
@@ -219,7 +219,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     if tokenize_style == 'bert': 
       input_1_ids, input_1_len = bert_tokenizer_style(tokenizer, example.text_a, add_cls_sep=True)
     else: 
-      input_1_ids, input_1_len = icd9_tokenizer_style(tokenizer, example.text_a)
+      input_1_ids, input_1_len = space_tokenizer_style(tokenizer, example.text_a)
 
 
     # The mask has 1 for real tokens and 0 for padding tokens. Only real
@@ -246,7 +246,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     if tokenize_style == 'bert': 
       input_2_ids, input_2_len = bert_tokenizer_style(tokenizer, example.text_b, add_cls_sep=True)
     else: 
-      input_2_ids, input_2_len = icd9_tokenizer_style(tokenizer, example.text_b)
+      input_2_ids, input_2_len = space_tokenizer_style(tokenizer, example.text_b)
 
 
     input_2_mask = [1] * len(input_2_ids)
@@ -336,20 +336,31 @@ class LabelProcessorForWrite(DataProcessor):
       guid = "%s-%s" % (set_type, counter)
       text_a = line[1]
       name_a = line[0] # name are not used, but good for debug
+      if 'GO' not in name_a:  ## STRICT ENFORCE GO:XYZ SYNTAX
+        name_a = 'GO:'+name_a
       examples.append(
         InputExample(guid=guid, text_a=text_a.lower(), text_b=None, name_a=name_a, name_b=None, label=None))
       counter = counter + 1
     return examples
 
 
-def convert_label_desc_to_features(examples, max_seq_length, tokenizer):
-  """Loads a data file into a list of `InputBatch`s."""
+def convert_label_desc_to_features(examples, max_seq_length, tokenizer, tokenize_style="space", all_name_array=None):
 
   features = []
 
   for (ex_index, example) in tqdm(enumerate(examples)):
 
-    input_1_ids, input_1_len = bert_tokenizer_style(tokenizer, example.text_a, add_cls_sep=True)
+    ## label
+    try: ## some terms have changed, legacy input file
+      input_pos=[all_name_array.index(example.name_a)]
+    except:
+      continue
+
+    if tokenize_style == 'bert': 
+      input_1_ids, input_1_len = bert_tokenizer_style(tokenizer, example.text_a, add_cls_sep=True)
+    else: 
+      input_1_ids, input_1_len = space_tokenizer_style(tokenizer, example.text_a)
+
     # The mask has 1 for real tokens and 0 for padding tokens. Only real
     # tokens are attended to.
     input_1_mask = [1] * len(input_1_ids)
@@ -364,9 +375,10 @@ def convert_label_desc_to_features(examples, max_seq_length, tokenizer):
     if ex_index < 5:
       print("\n*** Label Description Example ***")
       print("guid: %s" % (example.guid))
-      print("tokens: %s" % " ".join([str(x) for x in tokenizer.tokenize(example.text_a)]))
+      print("tokens: %s" % " ".join([str(x) for x in example.text_a.split() ]))
       print("input_ids: %s" % " ".join([str(x) for x in input_1_ids]))
       print("input_mask: %s" % " ".join([str(x) for x in input_1_mask]))
+      print("input_len: %s" % (input_1_len))
 
 
     features.append(InputFeatures(input_1_ids=input_1_ids,

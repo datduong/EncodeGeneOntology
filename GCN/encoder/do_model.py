@@ -132,7 +132,10 @@ if args.w2v_emb is not None:
       if go not in pretrained_weight: 
         go = re.sub("GO:","",go)
       # enforce strict "GO:xyz" but onto2vec doesn't have this
-      temp[index] = pretrained_weight[go]
+      # why are there missing GO terms still ??? maybe these GO terms were not used in "axiom A is_a B" in Onto2vec ?? 
+      # set 0 for GO terms not found .... ??? this is the only way. or we have to update the entire matrix
+      if go in pretrained_weight: 
+        temp[index] = pretrained_weight[go]
 
     ## now we get word dim and so forth
     pretrained_weight = temp ## override
@@ -178,6 +181,11 @@ else:
 
   if args.word_mode == 'PretrainedGO':
     model = encoder_model.encoder_model_extended_embedding ( args, metric_pass_to_joint_model[args.metric_option], **other_params )
+
+
+print ('\nmodel is\n')
+print (model)
+
 
 if args.use_cuda:
   print ('\n\n send model to gpu\n\n')

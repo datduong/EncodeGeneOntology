@@ -65,5 +65,10 @@ mkdir $result_folder
 conda activate tensorflow_gpuenv
 cd $server/GOmultitask
 
-CUDA_VISIBLE_DEVICES=5 python3 $server/GOmultitask/biLSTM/encoder/do_model.py --fix_word_emb --vocab_list $vocab_list --w2v_emb $w2v_emb --lr 0.0001 --bilstm_dim 1024 --main_dir $work_dir --qnli_dir $data_dir --batch_size_label 32 --result_folder $result_folder --epoch 200 --num_train_epochs_entailment 25 --use_cuda --metric_option $metric_option --def_emb_dim $def_emb_dim --reduce_cls_vec > $result_folder/train.log
+label_desc_dir=$work_dir/'go_def_in_obo.tsv'
+model_load=$result_folder/'best_state_dict.pytorch'
+
+# CUDA_VISIBLE_DEVICES=5 python3 $server/GOmultitask/biLSTM/encoder/do_model.py --fix_word_emb --vocab_list $vocab_list --w2v_emb $w2v_emb --lr 0.0001 --bilstm_dim 1024 --main_dir $work_dir --qnli_dir $data_dir --batch_size_label 32 --result_folder $result_folder --epoch 200 --num_train_epochs_entailment 25 --use_cuda --metric_option $metric_option --def_emb_dim $def_emb_dim --reduce_cls_vec > $result_folder/train.log
+
+CUDA_VISIBLE_DEVICES=5 python3 $server/GOmultitask/biLSTM/encoder/do_model.py --fix_word_emb --vocab_list $vocab_list --w2v_emb $w2v_emb --lr 0.0001 --bilstm_dim 1024 --main_dir $work_dir --qnli_dir $data_dir --batch_size_label 32 --result_folder $result_folder --epoch 0 --num_train_epochs_entailment 0 --use_cuda --metric_option $metric_option --def_emb_dim $def_emb_dim --reduce_cls_vec --model_load $model_load --write_vector --label_desc_dir $label_desc_dir > $result_folder/train2.log
 

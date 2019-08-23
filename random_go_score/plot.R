@@ -6,9 +6,9 @@ library('ggplot2')
 setwd("C:/Users/dat/Documents/RandomGOAnalysis")
 
 
-file_list = c('AIC/Human_go_analysis_all.AIC.degree.txt', 'GCN/cosine.300/go_analysis_all.GCN.degree.txt', 'BERT/cosine.768.reduce300ClsVec/go_analysis_all.BERT.degree.txt', 'BiLSTM/cosine.bilstm.300Vec/go_analysis_all.BiLSTM.degree.txt', 'BERT/cosine.768.reduce300SecondLayerVec/go_analysis_all.BERT.degree.txt' )
+file_list = c('AIC/Human_go_analysis_all.AIC.degree.txt', 'GCN/cosine.300/go_analysis_all.GCN.degree.txt', 'BERT/cosine.768.reduce300ClsVec/go_analysis_all.BERT.degree.txt', 'BiLSTM/cosine.bilstm.300Vec/go_analysis_all.BiLSTM.degree.txt', 'BERT/cosine.768.reduce300SecondLayerVec/go_analysis_all.BERT.degree.txt', 'GCNOnto2vec/cosine.300/go_analysis_all.GCNOnto2vec.degree.txt' )
 
-plot_name = c('AIC','GCN','BERT [CLS]','BiLSTM', 'BERT ave(2nd last layer)')
+plot_name = c('AIC','GCN','BertCLS','BiLSTM', 'BertAveToken+CLS+SEP', 'GCNOnto2vec')
 
 
 dfmain = read.table(file_list[1],header=T,sep="\t",row.names=NULL)
@@ -22,7 +22,7 @@ dfmain = subset(dfmain , dfmain$degree1<480 & dfmain$degree2<480)
 dfmain = dfmain[ c('go1','go2','ic1','ic2') ]
 dfmain = dfmain [ ! duplicated(dfmain), ]
 
-choice = 'degree' ## degree or ic
+choice = 'ic' ## degree or ic
 
 for (i in seq(1,length(plot_name))) {
 

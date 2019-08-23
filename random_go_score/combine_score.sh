@@ -1,6 +1,6 @@
 
 
-encoder='GCN'
+encoder='GCNOnto2vec'
 name='cosine.300'
 cd /local/datdb/goAndGeneAnnotationMar2017/RandomGOAnalysis/$encoder/$name
 

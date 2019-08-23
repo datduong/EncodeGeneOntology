@@ -25,20 +25,17 @@ graph = obonet.read_obo('/local/datdb/goAndGeneAnnotationMar2017/go.obo') # http
 # input_score = 'random_go_analysis_cc.GCN.txt'
 
 # work_dir = '/local/datdb/goAndGeneAnnotationMar2017/RandomGOAnalysis/GCN/cosine.768.reduce300ClsVec'
-work_dir = '/local/datdb/goAndGeneAnnotationMar2017/RandomGOAnalysis/GCN/cosine.300'
+work_dir = '/local/datdb/goAndGeneAnnotationMar2017/RandomGOAnalysis/GCNOnto2vec/cosine.300'
 
 os.chdir (work_dir)
 
-for input_score in ['random_go_analysis_cc.GCN.txt', 'random_go_analysis_mf.GCN.txt', 'random_go_analysis_bp.GCN.txt' , 'ParentChild_go_analysis_bp.GCN.txt' , 'ParentChild_go_analysis_cc.GCN.txt', 'ParentChild_go_analysis_mf.GCN.txt']:
-
+for input_score in ['random_go_analysis_cc.GCNOnto2vec.txt', 'random_go_analysis_mf.GCNOnto2vec.txt', 'random_go_analysis_bp.GCNOnto2vec.txt' , 'ParentChild_go_analysis_bp.GCNOnto2vec.txt' , 'ParentChild_go_analysis_cc.GCNOnto2vec.txt', 'ParentChild_go_analysis_mf.GCNOnto2vec.txt']:
+  #
   df = pd.read_csv(input_score,sep="\t") # index question  sentence  go1 go2 label score
   df = df.drop(columns="index")
   df = df.drop_duplicates()
-
   fout = open( re.sub( r".txt", r'.degree.txt' , input_score ) , 'w' )
-
   fout.write ('go1\tgo2\tlabel\ttype\tscore\tdegree1\tdegree2\tMeanDegree')
-
   for index,row in df.iterrows():
     d1 = graph.degree (row['go1'])
     d2 = graph.degree (row['go2'])
@@ -47,7 +44,6 @@ for input_score in ['random_go_analysis_cc.GCN.txt', 'random_go_analysis_mf.GCN.
     except:
       continue
     fout.write ( "\n"+"\t".join( str(row[k]) for k in ['go1', 'go2', 'label', 'type', 'score'] ) + "\t" +str(d1) + "\t"+str(d2)+ "\t"+str(d3) )
-
   #
   fout.close()
 

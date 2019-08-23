@@ -134,7 +134,19 @@ if args.epoch > 0 : ## here we do training
 
 
 
-print ('\n\nwrite emb')
+## added code to write out the vector as .txt 
+
+if args.write_vector: 
+  print ('\n\nwrite emb')
+  print ('\n\nwrite GO vectors into text, using format of python gensim library')
+  AllLabelDesc = data_loader.LabelProcessorForWrite ()
+  examples = AllLabelDesc.get_examples( args.label_desc_dir ) ## file @label_desc_dir is tab delim 
+  examples = data_loader.convert_label_desc_to_features ( examples , MAX_SEQ_LEN, tokenizer=Vocab, tokenize_style="space", all_name_array=all_name_array )
+  AllLabelLoader, GO_names = data_loader.label_loader_for_write(examples,64) ## should be able to handle 64 labels at once 
+  label_emb = model.write_label_vector( AllLabelLoader,os.path.join(args.result_folder,"label_vector.txt"), GO_names )
+
+
+
 
 print ('\n\nload test data\n\n')
 

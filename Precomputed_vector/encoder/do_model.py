@@ -44,8 +44,8 @@ args.num_label = len(all_name_array)
 
 ## **** load label description data ****
 
-if args.w2v_emb is not None: ## we can just treat each node as a vector without word description 
-  Vocab = load_vocab(args.vocab_list) # all words found in pubmed and trained in w2v ... should trim down
+
+Vocab = load_vocab(args.vocab_list) # all words found in pubmed and trained in w2v ... should trim down
 
 ## read go terms entailment pairs to train
 
@@ -79,13 +79,11 @@ other_params = {'dropout': 0.2,
                 'metric_option': args.metric_option
                 }
 
-pretrained_weight = None
-if args.w2v_emb is not None:
-  pretrained_weight = pickle.load(open(args.w2v_emb,'rb'))
-  pretrained_weight.shape[0]
-  other_params ['num_of_word'] = pretrained_weight.shape[0]
-  other_params ['word_vec_dim'] = pretrained_weight.shape[1]
-  other_params ['pretrained_weight'] = pretrained_weight 
+
+if args.vector_file is None:
+  print ('\n\nwe must have a pretrained GO vec.\n\n')
+  exit() 
+
 
 # cosine model
 # **** in using cosine model, we are not using the training sample A->B then B not-> A
@@ -98,7 +96,7 @@ ent_model = entailment_model.entailment_model (num_labels,args.bilstm_dim,args.d
 metric_pass_to_joint_model = {'entailment':ent_model, 'cosine':cosine_loss}
 
 ## make bilstm-entailment model
-
+## DO NOT NEED TO SPECIFY ANY GO ENCODER. we can do simple look-up from @pretrained_weight
 #biLstm = bi_lstm_model.bi_lstm_sent_encoder( other_params['word_vec_dim'], args.bilstm_dim )
 
 model = encoder_model.encoder_model ( args, metric_pass_to_joint_model[args.metric_option], **other_params )
