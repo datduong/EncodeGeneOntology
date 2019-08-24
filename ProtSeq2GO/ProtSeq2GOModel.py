@@ -311,10 +311,10 @@ class ProtSeq2GOBase (nn.Module):
     trackMicroRecall = {}
 
     ## DO NOT NEED TO DO THIS ALL THE TIME DURING TRAINING 
-    if self.args.not_train: 
-      rounding = np.arange(.1,1,.1)
-    else: 
-      rounding = [0.5]
+    # if self.args.not_train: 
+    #   rounding = np.arange(.1,1,.1)
+    # else: 
+    rounding = [0.5]
 
     for round_cutoff in rounding:
 
@@ -322,7 +322,7 @@ class ProtSeq2GOBase (nn.Module):
 
       preds_round = 1.0*( round_cutoff < preds ) ## converted into 0/1
 
-      result = evaluation_metric.all_metrics ( preds_round , all_label_ids, yhat_raw=preds, k=[5,10,15,20]) ## we can pass vector of P@k and R@k
+      result = evaluation_metric.all_metrics ( preds_round , all_label_ids, yhat_raw=preds, k=[5,10,15,20,25]) ## we can pass vector of P@k and R@k
       evaluation_metric.print_metrics( result )
 
       if 'full_data' not in trackF1macro:
@@ -348,7 +348,7 @@ class ProtSeq2GOBase (nn.Module):
 
         for cutoff in ['quant25','quant75','betweenQ25Q75']:
           ## indexing of the column to pull out , @pred is num_prot x num_go
-          result = evaluation_metric.all_metrics ( preds_round[: , kwargs[cutoff]] , all_label_ids[: , kwargs[cutoff]], yhat_raw=preds[: , kwargs[cutoff]], k=self.args.top_k)
+          result = evaluation_metric.all_metrics ( preds_round[: , kwargs[cutoff]] , all_label_ids[: , kwargs[cutoff]], yhat_raw=preds[: , kwargs[cutoff]], k=[5,10,15,20,25])
           print ("\nless than {} count".format(cutoff))
           evaluation_metric.print_metrics( result )
 
