@@ -168,10 +168,10 @@ class ProtSeq2GOBase (nn.Module):
     else:
       param_list = [(n,p) for n,p in self.named_parameters()]
 
-    ## save GPU mem by manually turn off gradients of stuffs we don't optim 
+    ## save GPU mem by manually turn off gradients of stuffs we don't optim
     param_name_to_optim = [ n[0] for n in param_list ] ## just get name
     for n,p in self.named_parameters():
-      if n not in param_name_to_optim: 
+      if n not in param_name_to_optim:
         p.requires_grad = False
 
     print ("\n\nparams to train")
@@ -249,9 +249,12 @@ class ProtSeq2GOBase (nn.Module):
         torch.save(self.state_dict(), os.path.join(self.args.result_folder,"last_state_dict.pytorch"))
         return tr_loss
 
-      elif epoch - last_best_epoch > 4:
+      elif (epoch - last_best_epoch > 4) and (self.args.optim_choice != 'SGD') :
         ## SGD seems to always able to decrease DevSet loss. it is slow, so we don't start with SGD, we will use RMSprop then do SGD
-        print ('\n\nchange from {} to SGD\n\n'.format(self.args.optim_choice) ) 
+        print ('\n\nload back best state_dict\n\n')
+        self.load_state_dict( torch.load ( os.path.join(self.args.result_folder,"best_state_dict.pytorch") ) , strict=False )
+
+        print ('\n\nchange from {} to SGD\n\n'.format(self.args.optim_choice) )
         self.args.optim_choice = 'SGD'
         optimizer = self.make_optimizer()
 
@@ -324,10 +327,10 @@ class ProtSeq2GOBase (nn.Module):
     trackMicroPrecision = {}
     trackMicroRecall = {}
 
-    ## DO NOT NEED TO DO THIS ALL THE TIME DURING TRAINING 
-    if self.args.not_train: 
+    ## DO NOT NEED TO DO THIS ALL THE TIME DURING TRAINING
+    if self.args.not_train:
       rounding = np.arange(.1,1,.1)
-    else: 
+    else:
       rounding = [0.5]
 
     for round_cutoff in rounding:
@@ -383,7 +386,7 @@ class ProtSeq2GOBase (nn.Module):
 
 
     ##
-    if self.args.not_train : 
+    if self.args.not_train :
       print ('\n\ntracking f1 compile into list\n')
 
       # print ('\nmacro f1 prec rec')
@@ -535,10 +538,10 @@ class DeepGOFlatSeqProtHwayGo (DeepGOFlatSeqProt):
     else:
       param_list = [(n,p) for n,p in self.named_parameters()]
 
-    ## save GPU mem by manually turn off gradients of stuffs we don't optim 
+    ## save GPU mem by manually turn off gradients of stuffs we don't optim
     param_name_to_optim = [ n[0] for n in param_list ] ## just get name
     for n,p in self.named_parameters():
-      if n not in param_name_to_optim: 
+      if n not in param_name_to_optim:
         p.requires_grad = False
 
     print ("\n\nparams to train")
