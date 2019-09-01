@@ -143,14 +143,6 @@ class ProtSeq2GOBase (nn.Module):
     self.classify_loss = nn.BCEWithLogitsLoss()
     # self.classify_loss = nn.BCELoss()
 
-    print ('\noptim function : {}'.format(args.optim_choice))
-    if args.optim_choice == 'SGD':
-      self.optim_choice = torch.optim.SGD
-    if args.optim_choice == 'Adam':
-      self.optim_choice = torch.optim.Adam
-    if args.optim_choice == 'RMSprop':
-      self.optim_choice = torch.optim.RMSprop
-
   def maxpool_prot_emb (self,prot_idx,mask):
     pass
 
@@ -161,14 +153,29 @@ class ProtSeq2GOBase (nn.Module):
     return 0, 0 ## return probability (can be un-sigmoid) and loss value
 
   def make_optimizer (self):
+
+    print ('\noptim function : {}'.format(self.args.optim_choice)) ## move in here, so that we can simply change @args.optim_choice and call @make_optimizer again
+    # if self.args.optim_choice == 'SGD':
+    self.optim_choice = torch.optim.SGD
+    if self.args.optim_choice == 'Adam':
+      self.optim_choice = torch.optim.Adam
+    if self.args.optim_choice == 'RMSprop':
+      self.optim_choice = torch.optim.RMSprop
+
     if self.args.fix_prot_emb:
       param_list = [(n,p) for n,p in self.named_parameters() if "ProtEncoder" not in n]
 
     else:
       param_list = [(n,p) for n,p in self.named_parameters()]
 
+    ## save GPU mem by manually turn off gradients of stuffs we don't optim 
+    param_name_to_optim = [ n[0] for n in param_list ] ## just get name
+    for n,p in self.named_parameters():
+      if n not in param_name_to_optim: 
+        p.requires_grad = False
+
     print ("\n\nparams to train")
-    for n,p in param_list:
+    for n,p in self.named_parameters():
       if p.requires_grad : print (n)
 
     return self.optim_choice ( [p for n,p in param_list], lr=self.args.lr ) # , momentum=0.9
@@ -207,8 +214,9 @@ class ProtSeq2GOBase (nn.Module):
         pred, loss = self.forward(prot_idx.cuda(), mask.cuda(), prot_interact_emb, label_ids.cuda(), **kwargs)
 
         # loss = self.classify_loss ( pred, label_ids.cuda() )
-
         loss.backward() ## we will later define what is @loss, so for base class, we will see error.
+        # torch.nn.utils.clip_grad_norm_(self.parameters(), args.max_grad_norm)
+
         optimizer.step()
         optimizer.zero_grad()
 
@@ -231,15 +239,21 @@ class ProtSeq2GOBase (nn.Module):
         last_best_epoch = epoch
 
       else:
-        if (epoch > 10) : ## don't decrease too quickly and too early, wait for later epoch
+        if (epoch > 4) : ## don't decrease too quickly and too early, wait for later epoch
           for g in optimizer.param_groups:
             g['lr'] = g['lr'] * 0.8 ## update lr rate for next epoch
 
-      if epoch - last_best_epoch > 20:
+      if epoch - last_best_epoch > 10:
         print ('\n\n\n**** break early \n\n\n')
         print ("save last")
         torch.save(self.state_dict(), os.path.join(self.args.result_folder,"last_state_dict.pytorch"))
         return tr_loss
+
+      elif epoch - last_best_epoch > 4:
+        ## SGD seems to always able to decrease DevSet loss. it is slow, so we don't start with SGD, we will use RMSprop then do SGD
+        print ('\n\nchange from {} to SGD\n\n'.format(self.args.optim_choice) ) 
+        self.args.optim_choice = 'SGD'
+        optimizer = self.make_optimizer()
 
     print ("save last")
     torch.save(self.state_dict(), os.path.join(self.args.result_folder,"last_state_dict.pytorch"))
@@ -311,10 +325,10 @@ class ProtSeq2GOBase (nn.Module):
     trackMicroRecall = {}
 
     ## DO NOT NEED TO DO THIS ALL THE TIME DURING TRAINING 
-    # if self.args.not_train: 
-    #   rounding = np.arange(.1,1,.1)
-    # else: 
-    rounding = [0.5]
+    if self.args.not_train: 
+      rounding = np.arange(.1,1,.1)
+    else: 
+      rounding = [0.5]
 
     for round_cutoff in rounding:
 
@@ -500,6 +514,15 @@ class DeepGOFlatSeqProtHwayGo (DeepGOFlatSeqProt):
 
   def make_optimizer (self):
 
+    print ('\noptim function : {}'.format(self.args.optim_choice)) ## move in here, so that we can simply change @args.optim_choice and call @make_optimizer again
+    # if self.args.optim_choice == 'SGD':
+    self.optim_choice = torch.optim.SGD
+    if self.args.optim_choice == 'Adam':
+      self.optim_choice = torch.optim.Adam
+    if self.args.optim_choice == 'RMSprop':
+      self.optim_choice = torch.optim.RMSprop
+
+
     if self.args.fix_prot_emb and (not self.args.fix_go_emb):
       param_list = [(n,p) for n,p in self.named_parameters() if "ProtEncoder" not in n]
 
@@ -512,8 +535,14 @@ class DeepGOFlatSeqProtHwayGo (DeepGOFlatSeqProt):
     else:
       param_list = [(n,p) for n,p in self.named_parameters()]
 
+    ## save GPU mem by manually turn off gradients of stuffs we don't optim 
+    param_name_to_optim = [ n[0] for n in param_list ] ## just get name
+    for n,p in self.named_parameters():
+      if n not in param_name_to_optim: 
+        p.requires_grad = False
+
     print ("\n\nparams to train")
-    for n,p in param_list:
+    for n,p in self.named_parameters():
       if p.requires_grad : print (n)
 
     return self.optim_choice ( [p for n,p in param_list], lr=self.args.lr ) # , momentum=0.9
