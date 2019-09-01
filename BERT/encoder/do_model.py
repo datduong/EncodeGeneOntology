@@ -191,28 +191,34 @@ print (bert_lm_ent_model)
 
 ## **** train
 
-if args.use_2nd_last_layer: 
+print ("\n")
+print (args)
+
+if args.average_layer: 
   print ('\n\nuse_2nd_last_layer, mean, then trained using cosine distance\n\n')
 
 for repeat in range( args.epoch ):
 
   print('\n\nrepeat step {}'.format(repeat))
 
-  if args.update_bert: 
-    if (repeat % 2) == 0:
+  if args.update_bert and (repeat != args.epoch-1):## don't do this for last epoch
+    if repeat==1: ## do 0 [1] 2 (so should run 3 round) 
       bert_lm_ent_model.update_bert(num_data_epochs, num_train_optim_steps_bert)  # here we run LM mask model
-      num_train_epochs_bert = 1
-
+      num_train_epochs_bert = 1 ## do only once on every other run
       torch.cuda.empty_cache()
       # save
-      torch.save(bert_lm_ent_model.state_dict(), os.path.join(args.result_folder,"best_state_dict"+name_add_on+".pytorch"))
+      # torch.save(bert_lm_ent_model.state_dict(), os.path.join(args.result_folder,"best_state_dict"+name_add_on+".pytorch"))
+
+  if repeat == (args.epoch-1): ## run twice longer 
+    bert_lm_ent_model.args.num_train_epochs_entailment = args.num_train_epochs_entailment*2
+    ## need to redefine the below
+    num_train_optim_steps_entailment = int( np.ceil ( np.ceil ( num_observation_in_train / args.batch_size_label ) / args.gradient_accumulation_steps) ) * (args.num_train_epochs_entailment*2) + args.batch_size_label
 
   tr_loss = bert_lm_ent_model.train_label(train_label_dataloader,
-                                                          num_train_optim_steps_entailment,
-                                                          dev_dataloader=dev_label_dataloader)
+                                          num_train_optim_steps_entailment,
+                                          dev_dataloader=dev_label_dataloader)
 
   torch.cuda.empty_cache()
-
   # save
   torch.save(bert_lm_ent_model.state_dict(), os.path.join(args.result_folder,"last_state_dict"+name_add_on+".pytorch"))
 

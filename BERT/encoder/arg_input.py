@@ -28,7 +28,10 @@ def get_args():
   parser.add_argument('--metric_option', type=str, required=True,
                       help='cosine or entailment')
 
-  parser.add_argument('--use_2nd_last_layer', action='store_true',
+  parser.add_argument('--layer_index', type=int, default=1,
+                      help='-1 is last -2 is 2nd last')
+
+  parser.add_argument('--average_layer', action='store_true',
                       help='allows user to use second to last layer in the BERT model as vector')
   
   parser.add_argument('--write_score', type=str, default=None,

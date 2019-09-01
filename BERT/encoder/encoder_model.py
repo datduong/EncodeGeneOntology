@@ -233,9 +233,9 @@ class encoder_model (nn.Module) :
     # the entire model is fine-tuned.
     # https://github.com/huggingface/pytorch-pretrained-BERT/blob/master/examples/extract_features.py#L95
 
-    if self.args.use_2nd_last_layer:
+    if self.args.average_layer:
     	encoded_layer , _  = self.bert_lm_sentence.bert (input_ids=label_desc, token_type_ids=None, attention_mask=label_mask, output_all_encoded_layers=True)
-    	second_tolast = encoded_layer[-2]
+    	second_tolast = encoded_layer[-1*self.args.layer_index]
     	second_tolast[label_mask == 0] = 0 ## mask to 0, so that summation over len will not be affected with strange numbers
     	cuda_second_layer = (second_tolast).type(torch.FloatTensor).cuda()
     	encode_sum = torch.sum(cuda_second_layer, dim = 1).cuda()
