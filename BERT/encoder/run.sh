@@ -50,16 +50,16 @@ pregenerated_data=$server/'goAndGeneAnnotationMar2017/BERT_base_cased_tune_go_br
 bert_output_dir=$pregenerated_data/'fine_tune_lm_bioBERT'
 mkdir $bert_output_dir
 
-result_folder=$bert_output_dir/$metric_option'.Cls768.Linear768' #$def_emb_dim.'clsVec'
+result_folder=$bert_output_dir/$metric_option'.Cls768.Linear768.Layer12' #$def_emb_dim.'clsVec'
 mkdir $result_folder
 
 conda activate tensorflow_gpuenv
 cd $server/GOmultitask
-CUDA_VISIBLE_DEVICES=7 python3 $server/GOmultitask/BERT/encoder/do_model.py --main_dir $work_dir --qnli_dir $data_dir --batch_size_label 8 --batch_size_bert 8 --bert_model $bert_model --pregenerated_data $pregenerated_data --bert_output_dir $bert_output_dir --result_folder $result_folder --epoch 1 --num_train_epochs_entailment 100 --use_cuda --metric_option $metric_option --def_emb_dim $def_emb_dim --reduce_cls_vec  > $result_folder/train.log
+CUDA_VISIBLE_DEVICES=5 python3 $server/GOmultitask/BERT/encoder/do_model.py --main_dir $work_dir --qnli_dir $data_dir --batch_size_label 8 --batch_size_bert 8 --bert_model $bert_model --pregenerated_data $pregenerated_data --bert_output_dir $bert_output_dir --result_folder $result_folder --epoch 1 --num_train_epochs_entailment 100 --use_cuda --metric_option $metric_option --def_emb_dim $def_emb_dim --reduce_cls_vec --average_layer --layer_index 1 > $result_folder/train.log
 ## use below to write out GO vectors
 label_desc_dir=$work_dir/'go_def_in_obo.tsv'
 model_load=$result_folder/'best_state_dict.pytorch'
-CUDA_VISIBLE_DEVICES=7 python3 $server/GOmultitask/BERT/encoder/do_model.py --main_dir $work_dir --qnli_dir $data_dir --batch_size_label 8 --batch_size_bert 8 --bert_model $bert_model --pregenerated_data $pregenerated_data --bert_output_dir $bert_output_dir --result_folder $result_folder --epoch 0 --num_train_epochs_entailment 0 --use_cuda --metric_option $metric_option --def_emb_dim $def_emb_dim --reduce_cls_vec --model_load $model_load --write_vector --label_desc_dir $label_desc_dir > $result_folder/writevec.log
+CUDA_VISIBLE_DEVICES=5 python3 $server/GOmultitask/BERT/encoder/do_model.py --main_dir $work_dir --qnli_dir $data_dir --batch_size_label 8 --batch_size_bert 8 --bert_model $bert_model --pregenerated_data $pregenerated_data --bert_output_dir $bert_output_dir --result_folder $result_folder --epoch 0 --num_train_epochs_entailment 0 --use_cuda --metric_option $metric_option --def_emb_dim $def_emb_dim --reduce_cls_vec --model_load $model_load --write_vector --label_desc_dir $label_desc_dir --average_layer --layer_index 1 > $result_folder/writevec.log
 
 
 
