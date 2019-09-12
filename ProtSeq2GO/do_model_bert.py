@@ -190,7 +190,7 @@ if args.label_counter_dict is not None:
   quant25 = protSeqLoader.IndexLessThanQuantile(label_to_test,GO_counter,quant25)
   quant75 = protSeqLoader.IndexMoreThanQuantile(label_to_test,GO_counter,quant75)
 
-  print ('counter 25 and 75 quantiles {} {}'.format(quant25, quant75))
+  print ('counter 25 and 75 quantiles {} {}'.format(len(quant25), len(quant75)))
 
   other_params['GoCount'] = GO_counter
   other_params['quant25'] = quant25

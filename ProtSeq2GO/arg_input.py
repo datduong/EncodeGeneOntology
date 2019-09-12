@@ -11,8 +11,10 @@ def get_args():
 
   parser.add_argument('--lr', type=float, default=0.0001,
                       help='learning rate')
-  parser.add_argument('--use_2nd_last_layer', action='store_true',
+  parser.add_argument('--average_layer', action='store_true',
                       help='allows user to use second to last layer in the BERT model as vector')
+  parser.add_argument('--switch_sgd', action='store_true',
+                      help='switch to sgd half way if loss not decrease')
   parser.add_argument('--result_folder', type=str, default=None,
                       help='where to save result')
   parser.add_argument('--optim_choice', type=str, default='RMSprop',

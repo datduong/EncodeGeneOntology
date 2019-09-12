@@ -208,14 +208,20 @@ biLstm = bi_lstm_model.bi_lstm_sent_encoder( other_params['word_vec_dim'], args.
 cosine_loss = biLSTM_encoder_model.cosine_distance_loss(args.bilstm_dim,args.def_emb_dim, args)
 
 # entailment model
-ent_model = biLSTM_entailment_model.entailment_model (2,args.bilstm_dim,args.def_emb_dim,weight=torch.FloatTensor([1.5,.75])) 
+# ent_model = biLSTM_entailment_model.entailment_model (2,args.bilstm_dim,args.def_emb_dim,weight=torch.FloatTensor([1.5,.75])) 
 
-metric_pass_to_joint_model = {'entailment':ent_model, 'cosine':cosine_loss}
+metric_pass_to_joint_model = {'entailment':None, 'cosine':cosine_loss}
 
 
 #* **** create bilstm model with yes/no classification ****
 ## init joint model
-GOEncoder = biLSTM_encoder_model.encoder_model ( args, metric_pass_to_joint_model[args.metric_option], biLstm, **other_params )
+GOEncoder = None
+if args.precomputed_vector is None:
+  GOEncoder = biLSTM_encoder_model.encoder_model ( args, metric_pass_to_joint_model[args.metric_option], biLstm, **other_params )
+else: 
+  print ("\n\nread precomputed vectors ... in this case, we probably will not update these vectors {}\n\n".format(args.precomputed_vector))
+  GOEncoder = biLSTM_encoder_model.ReadGOVecFromFile(args.precomputed_vector,dim=args.def_emb_dim)
+
 
 print ('see go encoder')
 print (GOEncoder)
@@ -227,8 +233,10 @@ if (args.precomputed_vector is None) and (args.go_enc_model_load is not None): #
 if args.fix_go_emb and (args.go_vec_dim > 0):
   GOEncoder.cuda()
   with torch.no_grad():
-    go_emb = GOEncoder.write_label_vector(GO_loader_for_biLSTM,fout_name=None,label_name=None) ## go_emb is num_go x dim, @label_name is only needed if @fout_name is used
-    print ('dim of go vectors {}'.format(go_emb.shape))
+    if args.precomputed_vector is None:
+      go_emb = GOEncoder.write_label_vector(GO_loader_for_biLSTM,fout_name=None,label_name=None) ## go_emb is num_go x dim, @label_name is only needed if @fout_name is used
+    else: 
+      go_emb = GOEncoder.forward(GO_name_for_biLSTM) # @GO_name_for_biLSTM is just some name array, as long as it matches @label_to_test
 
     print ('dim of go vectors {}'.format(go_emb.shape))
     other_params['go_emb'] = F.normalize( torch.FloatTensor(go_emb),dim=1 ).cuda()

@@ -249,7 +249,7 @@ class ProtSeq2GOBase (nn.Module):
         torch.save(self.state_dict(), os.path.join(self.args.result_folder,"last_state_dict.pytorch"))
         return tr_loss
 
-      elif (epoch - last_best_epoch > 4) and (self.args.optim_choice != 'SGD') :
+      elif self.args.switch_sgd and (epoch - last_best_epoch > 4) and (self.args.optim_choice != 'SGD') :
         ## SGD seems to always able to decrease DevSet loss. it is slow, so we don't start with SGD, we will use RMSprop then do SGD
         print ('\n\nload back best state_dict\n\n')
         self.load_state_dict( torch.load ( os.path.join(self.args.result_folder,"best_state_dict.pytorch") ) , strict=False )
@@ -329,7 +329,7 @@ class ProtSeq2GOBase (nn.Module):
 
     ## DO NOT NEED TO DO THIS ALL THE TIME DURING TRAINING
     if self.args.not_train:
-      rounding = np.arange(.1,1,.1)
+      rounding = np.arange(.1,1,.4)
     else:
       rounding = [0.5]
 
@@ -357,7 +357,7 @@ class ProtSeq2GOBase (nn.Module):
         trackMacroRecall['full_data'].append(result["rec_macro"])
         trackMicroRecall['full_data'].append(result["rec_micro"])
 
-      if 'GoCount' in kwargs :
+      if ('GoCount' in kwargs ) and (self.args.not_train): ## do not eed to do this all the time 
         print ('\n\nsee if method improves accuracy conditioned on frequency of GO terms')
 
         ## frequency less than 25 quantile  and over 75 quantile

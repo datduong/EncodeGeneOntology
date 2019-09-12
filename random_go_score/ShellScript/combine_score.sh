@@ -1,9 +1,11 @@
 
+BertAveWordClsSepLayer12/cosine.768.reduce300LastLayerCLS2Vec
 
-encoder='GCNOnto2vec'
-name='cosine.300'
+encoder='BertAveWordOnlyLayer12'
+name='cosine.768.reduce300LastLayerVec'
 cd /local/datdb/goAndGeneAnnotationMar2017/RandomGOAnalysis/$encoder/$name
 
+encoder='BERTLL'
 cat ParentChild_go_analysis_cc.$encoder.degree.txt ParentChild_go_analysis_mf.$encoder.degree.txt ParentChild_go_analysis_bp.$encoder.degree.txt random_go_analysis_cc.$encoder.degree.txt random_go_analysis_mf.$encoder.degree.txt random_go_analysis_bp.$encoder.degree.txt > go_analysis_all.$encoder.degree.txt
 
 

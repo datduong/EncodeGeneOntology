@@ -37,7 +37,7 @@ IC method will have significant difference, but definition model will have the s
 
 np.random.seed(1)
 
-random_len = 5100
+random_len = 15100 ## it was 5100 should we do more ?? 
 
 short_name = {"mf":'molecular_function', "bp": 'biological_process', "cc":'cellular_component'}
 
@@ -95,43 +95,42 @@ for category in ['mf','bp','cc'] :
 
   ### ****
 
-  ## true parent-child pairs
+  # ## true parent-child pairs
 
+  # ## filter set
+  # related_set = open("ParentChild_go_analysis_"+category+".tsv","w")
+  # related_set.write("index\tquestion\tsentence\tgo1\tgo2\tlabel\ttype")
 
-  ## filter set
-  related_set = open("ParentChild_go_analysis_"+category+".tsv","w")
-  related_set.write("index\tquestion\tsentence\tgo1\tgo2\tlabel\ttype")
+  # already_seen = {}
 
-  already_seen = {}
+  # counter = 0
+  # for node in tqdm ( GO_in_category ):
 
-  counter = 0
-  for node in tqdm ( GO_in_category ):
+  #   ## get parent and children
+  #   parents = []
+  #   for child, parent, key in graph.out_edges(node, keys=True):
+  #     # if key == 'is_a':
+  #     parents.append(parent)
 
-    ## get parent and children
-    parents = []
-    for child, parent, key in graph.out_edges(node, keys=True):
-      # if key == 'is_a':
-      parents.append(parent)
+  #   if len(parents) == 0:
+  #     continue
 
-    if len(parents) == 0:
-      continue
+  #   size = len(parents)//2
+  #   if size == 0:
+  #     size = 1
 
-    size = len(parents)//2
-    if size == 0:
-      size = 1
+  #   parents = np.random.choice( parents,size=size ) ## down sample a little bit
 
-    parents = np.random.choice( parents,size=size ) ## down sample a little bit
+  #   parents = [p for p in parents if (node+p) not in already_seen]
 
-    parents = [p for p in parents if (node+p) not in already_seen]
+  #   for p in parents:
+  #     ## write out
+  #     related_set.write("\n"+str(counter)+'\t'+GeneGOdb[node][0]+"\t"+GeneGOdb[p][0]+"\t"+node+"\t"+p+"\tentailment\t"+ category)
 
-    for p in parents:
-      ## write out
-      related_set.write("\n"+str(counter)+'\t'+GeneGOdb[node][0]+"\t"+GeneGOdb[p][0]+"\t"+node+"\t"+p+"\tentailment\t"+ category)
+  #     already_seen[node+p] = counter
+  #     counter = counter + 1
 
-      already_seen[node+p] = counter
-      counter = counter + 1
-
-  related_set.close()
+  # related_set.close()
 
 
 

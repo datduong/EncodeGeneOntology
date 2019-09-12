@@ -217,10 +217,10 @@ metric_pass_to_joint_model = {'entailment':ent_model, 'cosine':cosine_loss}
 ## init joint model
 GOEncoder = None
 if args.precomputed_vector != None:
-  GOEncoder = biLSTM_encoder_model.GoVectorsDictionary(args.precomputed_vector)
+  GOEncoder = biLSTM_encoder_model.ReadGOVecFromFile(args.precomputed_vector)
 else:
   print('need precomputed vector file')
-  exit(1)
+  exit()
 
 print ('see go encoder')
 print (GOEncoder)
@@ -239,7 +239,7 @@ if args.fix_go_emb and (args.go_vec_dim > 0):
     
     else:
       print('need precomputed_vector file')
-      exit(1)
+      exit()
 
     other_params['go_emb'] = F.normalize( torch.FloatTensor(go_emb),dim=1 ).cuda()
 
