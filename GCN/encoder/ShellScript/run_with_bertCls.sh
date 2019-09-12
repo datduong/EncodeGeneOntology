@@ -13,8 +13,8 @@ work_dir=$server/'deepgo/data'
 data_where_train_is='goAndGeneAnnotationDec2018' ## where the train.csv is 
 data_dir=$server/$data_where_train_is'/entailment_data/AicScore/go_bert_cls' ## whe
 
-mkdir $work_dir/'GCNBertCls'
-result_folder=$work_dir/'GCNBertCls/'$metric_option'.300' #$def_emb_dim.'clsVec'
+mkdir $work_dir/'GCNBertClsAppendLast'
+result_folder=$work_dir/'GCNBertClsAppendLast/'$metric_option'.300' #$def_emb_dim.'clsVec'
 mkdir $result_folder
 
 word_mode='PretrainedGO'
@@ -42,8 +42,8 @@ work_dir=$server/'goAndGeneAnnotationMar2017' ## where the go.obo is at
 data_where_train_is='goAndGeneAnnotationDec2018' ## where the train.csv is 
 data_dir=$server/$data_where_train_is'/entailment_data/AicScore/go_bert_cls' ## whe
 
-mkdir $work_dir/'GCNBertCls'
-result_folder=$work_dir/'GCNBertCls/'$metric_option'.300' #$def_emb_dim.'clsVec'
+mkdir $work_dir/'GCNBertClsAppendLast'
+result_folder=$work_dir/'GCNBertClsAppendLast/'$metric_option'.300' #$def_emb_dim.'clsVec'
 mkdir $result_folder
 
 word_mode='PretrainedGO'

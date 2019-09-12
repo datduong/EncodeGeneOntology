@@ -33,18 +33,22 @@ computeAUC = function(dataIn1,dataIn2,methodName){
 	return ( list( perf,areaUnderCurve,predValue,labelValue,dataUsedInAuc ) )
 }
 
+for ( data_type in c( 'HumanMouseScore','HumanFlyScore','MouseFlyScore','FlyWormScore' ) )  {
 
-path = '/u/scratch/d/datduong/geneOrtholog/MouseFlyScore/'
+path = paste0( '/u/scratch/d/datduong/geneOrtholog/',data_type )
 setwd(path)
-
 ret = NULL
 dataUsedInAuc = NULL 
 
 for (ontology in c("all3") ) { ## "BP","CC","MF",
 
 	print (ontology)
+	## append
+	fin = 'qnliFormatData17/BertGOName768/GeneScore.txt'
+	next_data_file = read.table(fin,header=F,sep='\t')
+	# gene1,gene2,trueLabel,score1,score2
 
-	result = read.table(paste0('MouseFlyScore',ontology,'.txt'),header=F)
+	result = read.table(paste0(data_type,ontology,'.txt'),header=F)
 
 	stringName1 = c('resnik','aic','w2v','inferSent') # w2v 'simDef'
 	name1 = c()
@@ -73,14 +77,6 @@ for (ontology in c("all3") ) { ## "BP","CC","MF",
 	}
 	print ( dim(result) )
 
-	## append
-
-	fin = 'qnliFormatData17/GcnRelu300Cosine/GeneScore.txt'
-	# fin = 'qnliFormatData17/cosine.768.reduce300ClsVec/GeneScore.txt'
-	# fin = 'qnliFormatData17/cosine.bilstm.300Vec/GeneScore.txt'
-
-	next_data_file = read.table(fin,header=F,sep=',')
-	# gene1,gene2,trueLabel,score1,score2
 
 	colnames(next_data_file) = c('g1','g2','label','minBMA','meanBMA')
 	next_data_file$label = NULL
@@ -140,9 +136,13 @@ for (ontology in c("all3") ) { ## "BP","CC","MF",
 	}
 }
 
+print (data_type)
 print (ret)
 
-dataUsedInAuc = dataUsedInAuc[c('g1','g2','label')]
-colnames(dataUsedInAuc) = c('gene1','gene2','label')
-write.table( dataUsedInAuc, 'dataUsedInAuc.csv', sep=" ", quote=F, row.names=FALSE)
+# dataUsedInAuc = dataUsedInAuc[c('g1','g2','label')]
+# colnames(dataUsedInAuc) = c('gene1','gene2','label')
+# write.table( dataUsedInAuc, 'dataUsedInAuc.csv', sep=" ", quote=F, row.names=FALSE)
+
+}
+
 

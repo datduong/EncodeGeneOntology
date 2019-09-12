@@ -87,6 +87,13 @@ def get_args():
   parser.add_argument("--use_cuda",
                       action='store_true',
                       help="Whether not to use CUDA when available")
+                      
+  parser.add_argument('--layer_index', type=int, default=1,
+                      help='-1 is last -2 is 2nd last')
+
+  parser.add_argument('--average_layer', action='store_true',
+                      help='allows user to use second to last layer in the BERT model as vector')
+  
   parser.add_argument("--cache_dir",
                       default="",
                       type=str,

@@ -33,7 +33,12 @@ from sklearn.metrics import matthews_corrcoef, f1_score
 from torch_geometric.data import Data
 from torch_geometric.nn import GCNConv
 
+from pytorch_pretrained_bert.optimization import BertAdam, WarmupLinearSchedule
+
+
+sys.path.append("/local/datdb/GOmultitask")
 import GCN.encoder.bi_lstm_model as bi_lstm_model
+import BERT.encoder.encoder_model as BERT_encoder_model
 
 def simple_accuracy(preds, labels):
   return (preds == labels).mean()
@@ -435,7 +440,7 @@ class encoder_model_extended_embedding (encoder_model):
     self.gcn_native_emb.weight.data.normal_(mean=0.0, std=0.2)
 
   def gcn_2layer (self,labeldesc_loader,edge_index):
-    # pretrained label embeddings are frozen, aux dimensions are trained
+    
     combined_embed = torch.cat((self.label_embedding.weight, self.gcn_native_emb.weight), 1)
     node_emb = self.nonlinear_gcnn ( self.gcn1.forward ( self.dropout ( combined_embed ), edge_index) ) ## take in entire label space at once
     node_emb = self.gcn2.forward (node_emb, edge_index) ## not relu or tanh in last layer
@@ -447,6 +452,177 @@ class encoder_model_extended_embedding (encoder_model):
     # node_emb = self.LinearCombine(node_emb)
 
     return node_emb
+
+
+class encoder_with_bert (encoder_model): # add some vector like Onto2vec BiLSTM BERT into GCN
+  
+  def __init__(self,args,BertModel,metric_module, **kwargs):
+    super(encoder_with_bert, self).__init__(args,metric_module,**kwargs)
+    self.bert = BertModel ## something like bert(GOdef) = GOvec
+    self.linear_reduce_bert = nn.Linear(768,512) ## bert is 768, if we don't want to retrain it, then we need to use 768-->512, then appen 512 to GCN
+   
+  def make_optimizer (self,num_train_optimization_steps):  ## use bert style optimizer 
+
+    param_optimizer = list( self.named_parameters() ) ## all the params 
+    no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
+    optimizer_grouped_parameters = [
+      {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)] , 'weight_decay': 0.01},
+      {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)] , 'weight_decay': 0.0}
+      ]
+    
+    optimizer = BertAdam(optimizer_grouped_parameters,
+                         lr=self.args.learning_rate,
+                         warmup=self.args.warmup_proportion,
+                         t_total=num_train_optimization_steps)
+    return optimizer 
+
+  
+  def get_label_gcn (self,batch,edge_index): 
+
+    label_emb_gcn = self.gcn_2layer(None, edge_index) ## @labeldesc_loader was mean to be at None, but we don't care about label loader if we just use simple emb. 
+    label_id_number_left, label_id_number_right, _, _, _, _, _, _, _ = batch
+    label_id_number_left = label_id_number_left.squeeze(1).data.numpy() ## using as indexing, so have to be array int, not tensor
+    label_id_number_right = label_id_number_right.squeeze(1).data.numpy()
+    return label_emb_gcn[label_id_number_left] , label_emb_gcn[label_id_number_right]
+
+  def get_label_bert (self,batch): 
+
+    _, _, label_desc1, label_len1, label_mask1, label_desc2, label_len2, label_mask2, _ = batch
+
+    label_desc1.data = label_desc1.data[ : , 0:int(max(label_len1)) ] # trim down input to max len of the batch
+    label_mask1.data = label_mask1.data[ : , 0:int(max(label_len1)) ] # trim down input to max len of the batch
+    label_emb1 = self.bert.encode_label_desc(label_desc1.cuda(),label_len1.cuda(),label_mask1.cuda())
+
+    label_desc2.data = label_desc2.data[ : , 0:int(max(label_len2)) ]
+    label_mask2.data = label_mask2.data[ : , 0:int(max(label_len2)) ]
+    label_emb2 = self.bert.encode_label_desc(label_desc2.cuda(),label_len2.cuda(),label_mask2.cuda())
+
+    return self.linear_reduce_bert( label_emb1 ) , self.linear_reduce_bert ( label_emb2 )
+
+  def do_train(self,train_dataloader,labeldesc_loader,edge_index,num_train_optimization_steps,dev_dataloader=None):
+
+    torch.cuda.empty_cache()
+
+    optimizer = self.make_optimizer(num_train_optimization_steps)
+
+    global_step = 0
+    eval_acc = 0
+    lowest_dev_loss = np.inf
+
+    for epoch in range( int(self.args.epoch)) :
+
+      torch.cuda.empty_cache()
+
+      self.train()
+      tr_loss = 0
+
+      ## for each batch
+      for step, batch in enumerate(tqdm(train_dataloader, desc="ent. epoch {}".format(epoch))):
+
+        batch = tuple(t for t in batch)
+
+        _, _, _, _, _, _, _, _, label_ids = batch ## seem so stupid 
+
+        label_gcn1, label_gcn2 = self.get_label_gcn (batch,edge_index)
+        label_bert1, label_bert2 = self.get_label_bert (batch)
+
+        loss, _ = self.metric_module.forward(
+          torch.cat((label_gcn1,label_bert1),1), 
+          torch.cat((label_gcn2,label_bert2),1), 
+          true_label=label_ids.cuda())
+
+        if self.args.gradient_accumulation_steps > 1:
+          loss = loss / self.args.gradient_accumulation_steps
+
+        loss.backward()
+        tr_loss = tr_loss + loss
+
+        if (step + 1) % self.args.gradient_accumulation_steps == 0:
+          optimizer.step()
+          optimizer.zero_grad()
+          global_step += 1
+
+      ## end epoch
+
+      # eval at each epoch
+      # print ('\neval on train data epoch {}'.format(epoch))
+      # result, _ , _ = self.do_eval(train_dataloader,labeldesc_loader,edge_index)
+
+      print ('\neval on dev data epoch {}'.format(epoch))
+      result, preds, dev_loss = self.do_eval(dev_dataloader,labeldesc_loader,edge_index)
+
+      if dev_loss < lowest_dev_loss :
+        lowest_dev_loss = dev_loss
+        print ("save best, lowest dev loss {}".format(lowest_dev_loss))
+        torch.save(self.state_dict(), os.path.join(self.args.result_folder,"best_state_dict.pytorch"))
+        last_best_epoch = epoch
+
+      if epoch - last_best_epoch > 20:
+        print ('\n\n\n**** break early \n\n\n')
+        print ('')
+        return tr_loss
+
+    return tr_loss ## last train loss
+
+  def do_eval(self,train_dataloader,labeldesc_loader,edge_index):
+
+    torch.cuda.empty_cache()
+    self.eval()
+
+    tr_loss = 0
+    preds = []
+    all_label_ids = []
+
+    with torch.no_grad(): ## don't need to update labels anymore
+      label_emb = self.gcn_2layer(labeldesc_loader,edge_index)
+      print ('sample gcn label_emb')
+      print (label_emb)
+
+    ## for each batch
+    for step, batch in enumerate(tqdm(train_dataloader, desc="eval")):
+
+      batch = tuple(t for t in batch)
+
+      with torch.no_grad():
+        _, _, _, _, _, _, _, _, label_ids = batch ## seem so stupid 
+
+        label_gcn1, label_gcn2 = self.get_label_gcn (batch,edge_index)
+        label_bert1, label_bert2 = self.get_label_bert (batch)
+
+        loss, score = self.metric_module.forward(
+          torch.cat((label_gcn1,label_bert1),1), 
+          torch.cat((label_gcn2,label_bert2),1), 
+          true_label=label_ids.cuda())
+
+        tr_loss = tr_loss + loss
+
+      if len(preds) == 0:
+        preds.append(score.detach().cpu().numpy())
+        all_label_ids.append(label_ids.detach().cpu().numpy())
+      else:
+        preds[0] = np.append(preds[0], score.detach().cpu().numpy(), axis=0)
+        all_label_ids[0] = np.append(all_label_ids[0], label_ids.detach().cpu().numpy(), axis=0) # row array
+
+    # end eval
+    all_label_ids = all_label_ids[0]
+    preds = preds[0]
+
+    if self.metric_option == 'entailment':
+      preds = softmax(preds, axis=1) ## softmax, return both prob of 0 and 1 for each label
+
+    print (preds)
+    print (all_label_ids)
+
+    result = 0
+    if self.args.test_file is None: ## save some time
+      result = acc_and_f1(preds, all_label_ids, self.metric_option) ## interally, we will take care of the case of @entailment vs @cosine
+      for key in sorted(result.keys()):
+        print("%s=%s" % (key, str(result[key])))
+
+    torch.cuda.empty_cache()
+    return result, preds, tr_loss
+
+ 
 
 
 

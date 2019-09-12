@@ -150,10 +150,10 @@ if args.w2v_emb is not None:
 cosine_loss = encoder_model.cosine_distance_loss(args.gcnn_dim,args.gcnn_dim, args)
 
 # entailment model
-ent_model = entailment_model.entailment_model (num_labels,args.gcnn_dim,args.def_emb_dim,weight=torch.FloatTensor([1.5,.75])) # torch.FloatTensor([1.5,.75])
+# ent_model = entailment_model.entailment_model (num_labels,args.gcnn_dim,args.def_emb_dim,weight=torch.FloatTensor([1.5,.75])) # torch.FloatTensor([1.5,.75])
 
 
-metric_pass_to_joint_model = {'entailment':ent_model, 'cosine':cosine_loss}
+metric_pass_to_joint_model = {'entailment':None, 'cosine':cosine_loss}
 
 ## make GCN model
 

@@ -1,6 +1,6 @@
 
-# /u/flashscratch/d/datduong/HumanPPI3ontology/score3ontologyHumanPPI.txt
-# /u/flashscratch/d/datduong/geneOrtholog/HumanMouseScore/HumanMouse3ontology.txt
+# /u/flashscratch/d/datduong/YeastPPI3ontology/score3ontologyYeastPPI.txt
+# /u/flashscratch/d/datduong/geneOrtholog/YeastMouseScore/YeastMouse3ontology.txt
 
 library('MKmisc')
 
@@ -38,9 +38,8 @@ computeAUC = function(dataIn1,dataIn2,methodName){
 
 path = '/u/flashscratch/d/datduong/HumanPPI3ontology/'
 setwd(path)
-
-model_type = c( 'cosine.bilstm.300Vec', 'cosine.768.reduce300ClsVec',
-								'GcnRelu300Cosine' )
+# 'GCN.cosine.768' , 'cosine.AveWordClsSep768.Linear768.Layer12' , 'cosine.bilstm768' , 'cosineCls768Linear768'
+model_type = c( 'BertGOName768' )
 
 dataUsedInAuc = NULL 
 ret = NULL 
