@@ -120,10 +120,8 @@ from pytorch_pretrained_bert.tokenization import BertTokenizer
 from pytorch_pretrained_bert.optimization import BertAdam, WarmupLinearSchedule
 
 ## **** load label description
-import biLSTM.encoder.data_loader as biLSTM_data_loader
-import biLSTM.encoder.encoder_model as biLSTM_encoder_model
-import biLSTM.encoder.entailment_model as biLSTM_entailment_model
-import biLSTM.encoder.bi_lstm_model as bi_lstm_model
+import Precomputed_vector.encoder.data_loader as PV_data_loader
+import Precomputed_vector.encoder.encoder_model as PV_encoder_model
 
 MAX_SEQ_LEN_LABEL_DEF = 512 ## max len for GO def (probably can be smaller)
 
@@ -200,24 +198,24 @@ if args.label_counter_dict is not None:
 
 ## **** make bilstm model
 
-biLstm = bi_lstm_model.bi_lstm_sent_encoder( other_params['word_vec_dim'], args.bilstm_dim )
+#biLstm = bi_lstm_model.bi_lstm_sent_encoder( other_params['word_vec_dim'], args.bilstm_dim )
 
 
 # cosine model
 # **** in using cosine model, we are not using the training sample A->B then B not-> A
-cosine_loss = biLSTM_encoder_model.cosine_distance_loss(args.bilstm_dim,args.def_emb_dim, args)
+cosine_loss = PV_encoder_model.cosine_distance_loss(args.bilstm_dim,args.def_emb_dim, args)
 
 # entailment model
-ent_model = biLSTM_entailment_model.entailment_model (2,args.bilstm_dim,args.def_emb_dim,weight=torch.FloatTensor([1.5,.75])) 
+#ent_model = biLSTM_entailment_model.entailment_model (2,args.bilstm_dim,args.def_emb_dim,weight=torch.FloatTensor([1.5,.75]))
 
-metric_pass_to_joint_model = {'entailment':ent_model, 'cosine':cosine_loss}
+#metric_pass_to_joint_model = {'entailment':ent_model, 'cosine':cosine_loss}
 
 
 #* **** create bilstm model with yes/no classification ****
 ## init joint model
 GOEncoder = None
-if args.precomputed_vector != None:
-  GOEncoder = biLSTM_encoder_model.ReadGOVecFromFile(args.precomputed_vector)
+if args.vector_file != None:
+  GOEncoder = PV_encoder_model.encoder_model(args, cosine_loss, **other_params)
 else:
   print('need precomputed vector file')
   exit()
@@ -226,15 +224,15 @@ print ('see go encoder')
 print (GOEncoder)
 
 
-if args.go_enc_model_load is not None:
-  print ('\n\nload back best model for GO encoder {}'.format(args.go_enc_model_load))
-  GOEncoder.load_state_dict( torch.load( args.go_enc_model_load ), strict=False )
+#if args.go_enc_model_load is not None:
+#  print ('\n\nload back best model for GO encoder {}'.format(args.go_enc_model_load))
+#  GOEncoder.load_state_dict( torch.load( args.go_enc_model_load ), strict=False )
 
 if args.fix_go_emb and (args.go_vec_dim > 0):
   GOEncoder.cuda()
   with torch.no_grad():
     go_emb = None
-    if args.precomputed_vector != None:
+    if args.vector_file != None:
       go_emb = GOEncoder.forward(GO_name_for_precomp) ## go_emb is num_go x dim, @label_name is only needed if @fout_name is used
     
     else:
