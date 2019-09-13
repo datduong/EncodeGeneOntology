@@ -85,6 +85,43 @@ class cosine_distance_loss (nn.Module):
     return loss, score
 
 
+class ReadGOVecFromFile(nn.Module):
+
+  def __init__(self, go_text, dim=300):
+    super(ReadGOVecFromFile, self).__init__()
+
+    self.dim = dim ## dim of pretrained, should be 300 to match the other encoders
+    self.mode = 'text'
+    if ".pickle" in go_text:
+      self.mode = 'pickle' ## onto2vec is saved as pickle, we can convert to text, but let's just use the pickle directly
+
+    if self.mode == 'text':
+      self.go = pd.read_csv(go_text, sep='\t')
+      non_formatted_go = self.go.set_index('name').T.to_dict('list')
+      self.go_dict = {}
+      for go_vecs in non_formatted_go:
+        split = non_formatted_go[go_vecs][0].split()
+        float_vec = [float(b) for b in split]
+        self.go_dict[go_vecs] = float_vec
+
+    else:
+      self.go_dict = pickle.load(open(go_text,"rb"))
+
+  def forward(self, go_terms):
+    ## @go_terms makes sure this variable matches the GO names array in BiLSTM, GCN or BERT. Ordering matter here.
+    ## because of strict enforce GO:xyz syntax to input @go_terms, we may need to add in "GO:"
+    # go_vectors = [self.go_dict[a] for a in go_terms]
+    go_vectors = np.zeros((len(go_terms),self.dim))
+
+    for index, go in enumerate(go_terms):
+      if go not in self.go_dict:
+        go_vectors [index] = self.go_dict[re.sub("GO:","",go)] ## because of strict enforce GO:xyz syntax, the pickle may not have the "GO:"
+      else:
+        go_vectors [index] = self.go_dict[go]
+
+    return go_vectors ## probably doesn't need to be in pytorch tensor
+
+
 class encoder_model (nn.Module) :
 
   def __init__(self,args,metric_module,biLstm,**kwargs):
