@@ -28,18 +28,18 @@ def get_args():
   parser.add_argument('--metric_option', type=str, required=True,
                       help='cosine or entailment')
 
-  parser.add_argument('--layer_index', type=int, default=1,
+  parser.add_argument('--layer_index', type=int, default=None,
                       help='-1 is last -2 is 2nd last')
 
-  parser.add_argument('--average_layer', action='store_true',
+  parser.add_argument('--average_layer', action='store_true', default=False,
                       help='allows user to use second to last layer in the BERT model as vector')
-  
+
   parser.add_argument('--write_score', type=str, default=None,
-                      help='write out score for 2 GO vectors') 
+                      help='write out score for 2 GO vectors')
 
   parser.add_argument('--test_file', type=str, default=None,
                       help='some test file not have to be test set')
-  
+
   parser.add_argument('--pretrained_label_emb', type=str, default=None,
                       help='pretrained_label_emb for gcnn')
   parser.add_argument('--do_continue', action='store_true',

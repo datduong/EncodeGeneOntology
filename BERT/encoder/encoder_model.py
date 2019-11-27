@@ -217,7 +217,17 @@ class encoder_model (nn.Module) :
     self.metric_option = kwargs['metric_option'] ## should be 'entailment' or 'cosine'
     self.metric_module = metric_module
 
-  def encode_label_desc (self, label_desc, label_len, label_mask): # @label_desc is matrix row=sentence, col=index
+    if self.args.average_layer:
+      print ('\noptimize weight to take average\n')
+      # https://discuss.pytorch.org/t/valueerror-cant-optimize-a-non-leaf-tensor/21751
+      # self.A1 = torch.ones(768,requires_grad=True, device="cuda") ## use @Variable, start at some feasible point
+      # self.A1.data = self.A1.data * 0.5
+      # print ('is self.A1 leaf ? {}'.format(self.A1.is_leaf))
+      self.A1 = nn.Parameter(torch.ones(768)*0.5)
+
+  def encode_label_desc (self, label_desc, label_len, label_mask):
+    # @label_desc is matrix row=sentence, col=index
+    # @label_mask is batch x max_word_len
 
     # # zero padding is not 0, but it has some value, because every character in sentence is "matched" with every other char.
     # # convert padding to actually zero or -inf (if we take maxpool later)
@@ -233,15 +243,33 @@ class encoder_model (nn.Module) :
     # the entire model is fine-tuned.
     # https://github.com/huggingface/pytorch-pretrained-BERT/blob/master/examples/extract_features.py#L95
 
-    if self.args.average_layer:
-    	encoded_layer , _  = self.bert_lm_sentence.bert (input_ids=label_desc, token_type_ids=None, attention_mask=label_mask, output_all_encoded_layers=True)
-    	second_tolast = encoded_layer[-1*self.args.layer_index]
-    	second_tolast[label_mask == 0] = 0 ## mask to 0, so that summation over len will not be affected with strange numbers
-    	cuda_second_layer = (second_tolast).type(torch.FloatTensor).cuda()
-    	encode_sum = torch.sum(cuda_second_layer, dim = 1).cuda()
-    	label_sum = torch.sum(label_mask.cuda(), dim=1).unsqueeze(0).transpose(0,1).type(torch.FloatTensor).cuda()
-    	go_vectors = encode_sum/label_sum
-    	return go_vectors
+    if self.args.layer_index is not None and (self.args.average_layer == False):
+      encoded_layer , _  = self.bert_lm_sentence.bert (input_ids=label_desc, token_type_ids=None, attention_mask=label_mask, output_all_encoded_layers=True)
+      layer_extract = encoded_layer[self.args.layer_index] ## batch x max_word_len x 768
+      layer_extract.data[label_mask == 0] = 0 ## mask to 0, so that summation over len will not be affected with strange numbers
+      label_sum = torch.sum(label_mask, dim=1).unsqueeze(0).transpose(0,1) ## batch --> batch x 1
+      this_layer_mean = torch.sum(layer_extract, dim = 1)/label_sum
+      return this_layer_mean
+
+    elif self.args.average_layer:
+      encoded_layer , _  = self.bert_lm_sentence.bert (input_ids=label_desc, token_type_ids=None, attention_mask=label_mask, output_all_encoded_layers=True)
+
+      ## both layer will need this @label_sum
+      label_sum = torch.sum(label_mask, dim=1).unsqueeze(0).transpose(0,1) ## batch --> batch x 1
+
+      # last layer
+      layer_extract_1 = encoded_layer[-1]
+      layer_extract_1.data[label_mask == 0] = 0 ## mask to 0, so that summation over len will not be affected with strange numbers
+      this_layer_mean_1 = torch.sum(layer_extract_1, dim = 1)/label_sum
+
+      ## second last layer
+      layer_extract_2 = encoded_layer[-2] ## batch x max_word_len x 768
+      layer_extract_2.data[label_mask == 0] = 0 ## mask to 0, so that summation over len will not be affected with strange numbers
+      this_layer_mean_2 = torch.sum(layer_extract_2, dim = 1)/label_sum
+
+      ## weighted average (each dimension has its own weight)
+      go_vectors = self.A1*this_layer_mean_1 + (1-self.A1)*this_layer_mean_2
+      return go_vectors
 
     else:
       _ , pooled_output = self.bert_lm_sentence.bert (input_ids=label_desc, token_type_ids=None, attention_mask=label_mask, output_all_encoded_layers=False)
@@ -253,13 +281,20 @@ class encoder_model (nn.Module) :
     ## BERT.emb is used by words in documents
 
     param_optimizer = list(self.bert_lm_sentence.bert.named_parameters())  # + list (self.metric_module.named_parameters())
-
     no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
 
-    optimizer_grouped_parameters = [
-      {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)] , 'weight_decay': 0.01},
-      {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)] + [p for n, p in list(self.metric_module.named_parameters())] , 'weight_decay': 0.0}
-      ]
+    if self.args.average_layer:
+      optimizer_grouped_parameters = [
+        {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)] , 'weight_decay': 0.01},
+        {'params':  [p for n, p in param_optimizer if any(nd in n for nd in no_decay)] +
+                    [p for n, p in list(self.metric_module.named_parameters())] +
+                    [self.A1], 'weight_decay': 0.0}
+        ]
+    else:
+      optimizer_grouped_parameters = [
+        {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)] , 'weight_decay': 0.01},
+        {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)] + [p for n, p in list(self.metric_module.named_parameters())] , 'weight_decay': 0.0}
+        ]
 
     if self.args.fp16:
       from apex.optimizers import FP16_Optimizer
@@ -285,14 +320,13 @@ class encoder_model (nn.Module) :
                           warmup=self.args.warmup_proportion,
                           t_total=num_train_optimization_steps)
 
-    self.bert_lm_sentence.train()
-    self.metric_module.train()
-
     global_step = 0
     eval_acc = 0
     last_best_epoch = 0
 
     for epoch in range( int(self.args.num_train_epochs_entailment)) :
+
+      self.train() ## turn on train again
 
       tr_loss = 0
 
@@ -306,11 +340,11 @@ class encoder_model (nn.Module) :
 
         label_desc1.data = label_desc1.data[ : , 0:int(max(label_len1)) ] # trim down input to max len of the batch
         label_mask1.data = label_mask1.data[ : , 0:int(max(label_len1)) ] # trim down input to max len of the batch
-        label_emb1 = self.encode_label_desc(label_desc1,label_len1,label_mask1)
+        label_emb1 = self.encode_label_desc(label_desc1,label_len1,label_mask1.type(torch.FloatTensor).cuda())
 
         label_desc2.data = label_desc2.data[ : , 0:int(max(label_len2)) ]
         label_mask2.data = label_mask2.data[ : , 0:int(max(label_len2)) ]
-        label_emb2 = self.encode_label_desc(label_desc2,label_len2,label_mask2)
+        label_emb2 = self.encode_label_desc(label_desc2,label_len2,label_mask2.type(torch.FloatTensor).cuda())
 
         loss, score = self.metric_module.forward(label_emb1, label_emb2, true_label=label_ids)
 
@@ -332,16 +366,23 @@ class encoder_model (nn.Module) :
             for param_group in optimizer.param_groups:
               param_group['lr'] = lr_this_step
 
+          if self.args.average_layer:
+            print ('\ncheck gradient')
+            print (self.A1.grad[0:10])
+            print ('\nvalue')
+            print (self.A1[0:10])
+
           optimizer.step()
           optimizer.zero_grad()
           global_step += 1
 
+          if self.args.average_layer: ## must bound weights after calling @optimizer.step
+            self.A1.data[self.A1.data < 0] = 0
+            self.A1.data[self.A1.data > 1] = 1
+
+
       print ("\ntrain inner epoch {} loss {}".format(epoch,tr_loss))
       # eval at each epoch
-
-      self.bert_lm_sentence.eval()
-      self.metric_module.eval()
-
       # print ('\neval on train data inner epoch {}'.format(epoch)) ## too slow, takes 5 mins, we should just skip
       # result, preds = self.eval_label(train_dataloader)
 
@@ -354,12 +395,9 @@ class encoder_model (nn.Module) :
         torch.save(self.state_dict(), os.path.join(self.args.result_folder,"best_state_dict.pytorch"))
         last_best_epoch = epoch
 
-      if epoch - last_best_epoch > 20:
+      if epoch - last_best_epoch > 3:
         print ('\n\n\n**** break early \n\n\n')
         return tr_loss
-
-      self.bert_lm_sentence.train()
-      self.metric_module.train()
 
     return tr_loss # last train loss
 
@@ -367,8 +405,7 @@ class encoder_model (nn.Module) :
 
     torch.cuda.empty_cache()
 
-    self.bert_lm_sentence.eval()
-    self.metric_module.eval()
+    self.eval()
 
     preds = []
     all_label_ids = []
@@ -385,11 +422,11 @@ class encoder_model (nn.Module) :
 
         label_desc1.data = label_desc1.data[ : , 0:int(max(label_len1)) ] # trim down input to max len of the batch
         label_mask1.data = label_mask1.data[ : , 0:int(max(label_len1)) ] # trim down input to max len of the batch
-        label_emb1 = self.encode_label_desc(label_desc1,label_len1,label_mask1)
+        label_emb1 = self.encode_label_desc(label_desc1,label_len1,label_mask1.type(torch.FloatTensor).cuda())
 
         label_desc2.data = label_desc2.data[ : , 0:int(max(label_len2)) ]
         label_mask2.data = label_mask2.data[ : , 0:int(max(label_len2)) ]
-        label_emb2 = self.encode_label_desc(label_desc2,label_len2,label_mask2)
+        label_emb2 = self.encode_label_desc(label_desc2,label_len2,label_mask2.type(torch.FloatTensor).cuda())
 
         loss , prob = self.metric_module.forward(label_emb1, label_emb2, true_label=label_ids)
 
@@ -518,9 +555,9 @@ class encoder_model (nn.Module) :
 
     if fout_name is not None:
       fout = open(fout_name,'w')
-      if self.args.reduce_cls_vec: 
+      if self.args.reduce_cls_vec:
         fout.write(str(len(label_name)) + " " + str(300) + "\n")
-      else: 
+      else:
         fout.write(str(len(label_name)) + " " + str(768) + "\n")
 
     label_emb = None
