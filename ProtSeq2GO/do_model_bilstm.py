@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm, trange
 
-
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -24,34 +23,31 @@ from sklearn.metrics import matthews_corrcoef, f1_score
 
 from pytorch_pretrained_bert.tokenization import BertTokenizer, load_vocab
 
-from torch_geometric.data import Data
-from torch_geometric.nn import GCNConv
-
-# print (sys.path)
+# from torch_geometric.data import Data
+# from torch_geometric.nn import GCNConv
 
 sys.path.append("/local/datdb/GOmultitask")
+import GCN.encoder.data_loader as GCN_data_loader ## COMMENT used to load data about the GO labels (like their definitions)
 
-import GCN.encoder.data_loader as GCN_data_loader
-import GCN.encoder.encoder_model as GCN_encoder_model
 
-os.chdir("/local/datdb/GOmultitask")
-
-import ProtSeq2GO.ProtSeq2GOModel as ProtSeq2GOModel
+os.chdir("/local/datdb/GOmultitask") 
+import ProtSeq2GO.ProtSeq2GOModel as ProtSeq2GOModel ####
 import ProtSeq2GO.protSeqLoader as protSeqLoader
-
 import ProtSeq2GO.arg_input as arg_input
 args = arg_input.get_args()
-
 print (args)
 
-MAX_SEQ_LEN = 2001
+random.seed(args.seed) ####
+np.random.seed(args.seed)
+torch.manual_seed(args.seed)
 
+MAX_SEQ_LEN = 2001 ##!! can be hardcode because we know we will not have any over this length
+
+#### load all names and descriptions of labels
 os.chdir(args.main_dir)
-
 all_name_array = pd.read_csv("go_name_in_obo.csv", header=None)
 all_name_array = list (all_name_array[0])
 args.num_label = len(all_name_array)
-
 
 ## **** supposed we want to do testing on subset, to repeat deepgo baseline
 label_to_test = None
@@ -60,18 +56,17 @@ label_to_test_index = None
 if (args.num_label_to_test == 0) and (args.label_subset_file is None):
   args.num_label_to_test = args.num_label
 
-
 elif args.label_subset_file is not None:
 
-  ## we must properly extract the labels wanted
+  ## COMMENT we must properly extract the labels wanted
   ## if we do not want to update GO encoder, then we don't actually need this "if" statement. we can directly remove legacy terms from @go_name_in_obo.csv when creating @all_name_array
 
-  print ('\n\nloading this set of go terms {}'.format(args.label_subset_file))
+  print ('\n\nloading and then sorting this set of go terms {}'.format(args.label_subset_file))
 
   ## we can do legacy GO terms if we don't care about the definitions
 
   label_to_test = pd.read_csv(args.label_subset_file, header=None)
-  label_to_test = sorted ( list (label_to_test[0]) ) ## must sort, because we sort @all_name_array. we want the same ordering if we use @edge_index and run GCN to get emb. ORDERING DOES NOT MATTER IF WE DON'T USE GO DEFINITIONS
+  label_to_test = sorted ( list (label_to_test[0]) ) #### must sort, because we sort @all_name_array. we want the same ordering if we use @edge_index and run GCN to get emb. ORDERING DOES NOT MATTER IF WE DON'T USE GO DEFINITIONS
 
   print ('\n\ntotal label to test before filter legacy terms {}'.format(len(label_to_test)))
 
@@ -87,12 +82,10 @@ elif args.label_subset_file is not None:
   # label_to_test_index = np.array ( [all_name_array.index(label) for label in label_to_test] )
   label_to_test_index = np.arange( args.num_label_to_test ) ## extract all labels
 
-
-## **** create maxpool just like how deepgo does it. ??, then we need to load the entire BP/CC/MF
 AdjacencyMatrix = None
 label_in_ontology_index = None
 
-if args.tree :
+if args.tree : #### create maxpool just like how deepgo does it. ??, then we need to load the entire BP/CC/MF
 
   label_in_ontology = pd.read_csv(args.label_in_ontology, header=None)
   label_in_ontology = sorted (list ( label_in_ontology[0] ) )
@@ -111,15 +104,11 @@ if args.tree :
   AdjacencyMatrix = torch.FloatTensor(AdjacencyMatrix)
 
 
-
-## requires labels to be read as "indexing"
-
+#### load definition of each label
 from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE, WEIGHTS_NAME, CONFIG_NAME
 from pytorch_pretrained_bert.modeling import BertForMaskedLM, BertConfig, BertForPreTraining
 from pytorch_pretrained_bert.tokenization import BertTokenizer
 from pytorch_pretrained_bert.optimization import BertAdam, WarmupLinearSchedule
-
-## **** load label description
 import biLSTM.encoder.data_loader as biLSTM_data_loader
 import biLSTM.encoder.encoder_model as biLSTM_encoder_model
 import biLSTM.encoder.entailment_model as biLSTM_entailment_model
@@ -127,7 +116,7 @@ import biLSTM.encoder.bi_lstm_model as bi_lstm_model
 
 MAX_SEQ_LEN_LABEL_DEF = 512 ## max len for GO def (probably can be smaller)
 
-if args.w2v_emb is not None: ## we can just treat each node as a vector without word description 
+if args.w2v_emb is not None: ## we can just treat each node as a vector without word description
   Vocab = load_vocab(args.vocab_list) # all words found in pubmed and trained in w2v ... should trim down
 
 ## reading in feature label is in @GCN folder. too lazy to port this function out.
@@ -139,28 +128,28 @@ if args.tree:
   LabelSamples = GCN_data_loader.convert_labels_to_features(LabelSamples, MAX_SEQ_LEN_LABEL_DEF, Vocab, all_name_array=label_in_ontology, tokenize_style='space')
 
 else:
-  ## only get vectors for labels we want.
+  ## COMMENT only get vectors for labels we want.
   LabelSamples = LabelDescLoader.get_examples(args.data_dir, label_array=label_to_test)
   LabelSamples = GCN_data_loader.convert_labels_to_features(LabelSamples, MAX_SEQ_LEN_LABEL_DEF, Vocab, all_name_array=label_to_test, tokenize_style='space')
-
 
 GO_loader_for_biLSTM, GO_name_for_biLSTM = GCN_data_loader.make_label_loader (LabelSamples,args.batch_size_bert,fp16=False) ## if we fix encoder, then we don't have to worry about batch size, should be able to handle 32 or even 64
 
 
-## **** load protein data
-
+#### load protein data, seq + label
 
 if args.ontology is None:
   add_name = ""
 else:
-  add_name = '-' + args.ontology
+  add_name = '-' + args.ontology # + '-bonnie' ## if use bepler+bonnie
+  if args.add_name is not None:
+    add_name = add_name + "-" + args.add_name
 
+print ('see some labels to be tested {}'.format(label_to_test[0:10]))
 train_loader = protSeqLoader.ProtLoader (args.data_dir, 'train'+add_name+'.tsv', all_name_array, MAX_SEQ_LEN, 'random', args, args.do_kmer, label_to_test)
-
 dev_loader = protSeqLoader.ProtLoader (args.data_dir, 'dev'+add_name+'.tsv', all_name_array, MAX_SEQ_LEN, 'sequential', args, args.do_kmer, label_to_test)
 
 
-## **** make model ****
+####  make model
 
 other_params = {'dropout': 0.2,
                 'metric_option': args.metric_option,
@@ -180,7 +169,6 @@ if args.w2v_emb is not None:
   other_params ['pretrained_weight'] = pretrained_weight
 
 
-
 ## **** load GO count dictionary data
 if args.label_counter_dict is not None:
   GO_counter = pickle.load(open(args.label_counter_dict,"rb"))
@@ -188,7 +176,7 @@ if args.label_counter_dict is not None:
   betweenQ25Q75 = protSeqLoader.IndexBetweenQ25Q75Quantile(label_to_test,GO_counter,quant25,quant75)
   quant25 = protSeqLoader.IndexLessThanQuantile(label_to_test,GO_counter,quant25)
   quant75 = protSeqLoader.IndexMoreThanQuantile(label_to_test,GO_counter,quant75)
-  
+
   print ('counter 25 and 75 quantiles {} {}'.format(quant25, quant75))
 
   other_params['GoCount'] = GO_counter
@@ -197,18 +185,16 @@ if args.label_counter_dict is not None:
   other_params['betweenQ25Q75'] = betweenQ25Q75
 
 
-
 ## **** make bilstm model
 
 biLstm = bi_lstm_model.bi_lstm_sent_encoder( other_params['word_vec_dim'], args.bilstm_dim )
-
 
 # cosine model
 # **** in using cosine model, we are not using the training sample A->B then B not-> A
 cosine_loss = biLSTM_encoder_model.cosine_distance_loss(args.bilstm_dim,args.def_emb_dim, args)
 
 # entailment model
-# ent_model = biLSTM_entailment_model.entailment_model (2,args.bilstm_dim,args.def_emb_dim,weight=torch.FloatTensor([1.5,.75])) 
+# ent_model = biLSTM_entailment_model.entailment_model (2,args.bilstm_dim,args.def_emb_dim,weight=torch.FloatTensor([1.5,.75]))
 
 metric_pass_to_joint_model = {'entailment':None, 'cosine':cosine_loss}
 
@@ -218,7 +204,7 @@ metric_pass_to_joint_model = {'entailment':None, 'cosine':cosine_loss}
 GOEncoder = None
 if args.precomputed_vector is None:
   GOEncoder = biLSTM_encoder_model.encoder_model ( args, metric_pass_to_joint_model[args.metric_option], biLstm, **other_params )
-else: 
+else:
   print ("\n\nread precomputed vectors ... in this case, we probably will not update these vectors {}\n\n".format(args.precomputed_vector))
   GOEncoder = biLSTM_encoder_model.ReadGOVecFromFile(args.precomputed_vector,dim=args.def_emb_dim)
 
@@ -235,7 +221,7 @@ if args.fix_go_emb and (args.go_vec_dim > 0):
   with torch.no_grad():
     if args.precomputed_vector is None:
       go_emb = GOEncoder.write_label_vector(GO_loader_for_biLSTM,fout_name=None,label_name=None) ## go_emb is num_go x dim, @label_name is only needed if @fout_name is used
-    else: 
+    else:
       go_emb = GOEncoder.forward(GO_name_for_biLSTM) # @GO_name_for_biLSTM is just some name array, as long as it matches @label_to_test
 
     print ('dim of go vectors {}'.format(go_emb.shape))
@@ -269,8 +255,11 @@ if args.model_choice == 'DeepGOFlatSeqOnly':
 if args.model_choice == 'DeepGOFlatSeqProtHwayGo':
   prot2seq_model = ProtSeq2GOModel.DeepGOFlatSeqProtHwayGo (ProtEncoder, GOEncoder, args, **other_params)
 
-if args.model_choice == 'DeepGOFlatSeqProtHwayNotUseGo': ## meant to be used to show that we need GO vectors. it has almost exactly the same structure as @DeepGOFlatSeqProtHwayGo
+if args.model_choice == 'DeepGOFlatSeqProtHwayNotUseGo': ## show that we need GO vectors. it has same structure as @DeepGOFlatSeqProtHwayGo
   prot2seq_model = ProtSeq2GOModel.DeepGOFlatSeqProtHwayNotUseGo (ProtEncoder, GOEncoder, args, **other_params)
+
+if args.model_choice == 'DeepGOFlatSeqProtHwayGoNotUsePPI':
+  prot2seq_model = ProtSeq2GOModel.DeepGOFlatSeqProtHwayGoNotUsePPI (ProtEncoder, GOEncoder, args, **other_params)
 
 if args.model_choice == 'DeepGOTreeSeqProtHwayGo':
   prot2seq_model = ProtSeq2GOModel.DeepGOTreeSeqProtHwayGo (ProtEncoder, GOEncoder, args, **other_params)
@@ -286,17 +275,15 @@ print (prot2seq_model)
 prot2seq_model.cuda()
 
 ##
-# random.seed(args.seed)
-# np.random.seed(args.seed)
-# torch.manual_seed(args.seed)
+random.seed(args.seed)
+np.random.seed(args.seed)
+torch.manual_seed(args.seed)
 
-## **** train
-
-if not args.not_train:
+if not args.not_train: ##!! **** train
   prot2seq_model.do_train(train_loader, dev_loader, **other_params)
 
 
-## **** run on test set
+##!! **** run on test set
 ## load back best model on dev
 print ('\n\nload back best model based on dev set {}'.format(os.path.join(args.result_folder,"best_state_dict.pytorch")))
 prot2seq_model.load_state_dict( torch.load( os.path.join(args.result_folder,"best_state_dict.pytorch") ), strict=False )
@@ -304,5 +291,7 @@ prot2seq_model.load_state_dict( torch.load( os.path.join(args.result_folder,"bes
 ## load test set
 test_loader = protSeqLoader.ProtLoader (args.data_dir, 'test'+add_name+'.tsv', all_name_array, MAX_SEQ_LEN, 'sequential', args, args.do_kmer, label_to_test)
 print ('\non test set\n')
-prot2seq_model.do_eval(test_loader, **other_params)
-
+result, preds, tr_loss = prot2seq_model.do_eval(test_loader, **other_params)
+print ('dim of prediction {}'.format(preds['prediction'].shape))
+## COMMENT save test set so that we can do analysis later
+pickle.dump( preds, open( os.path.join(args.result_folder, "prediction_testset.pickle"),"wb") )

@@ -283,18 +283,20 @@ class encoder_model (nn.Module) :
     param_optimizer = list(self.bert_lm_sentence.bert.named_parameters())  # + list (self.metric_module.named_parameters())
     no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
 
+    # if self.args.average_layer:
+    optimizer_grouped_parameters = [
+      {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)] , 'weight_decay': 0.01},
+      {'params':  [p for n, p in param_optimizer if any(nd in n for nd in no_decay)] +
+                  [p for n, p in list(self.metric_module.named_parameters())], 'weight_decay': 0.0}
+      ]
+    # else:
+    #   optimizer_grouped_parameters = [
+    #     {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)] , 'weight_decay': 0.01},
+    #     {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)] + [p for n, p in list(self.metric_module.named_parameters())] , 'weight_decay': 0.0}
+    #     ]
+
     if self.args.average_layer:
-      optimizer_grouped_parameters = [
-        {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)] , 'weight_decay': 0.01},
-        {'params':  [p for n, p in param_optimizer if any(nd in n for nd in no_decay)] +
-                    [p for n, p in list(self.metric_module.named_parameters())] +
-                    [self.A1], 'weight_decay': 0.0}
-        ]
-    else:
-      optimizer_grouped_parameters = [
-        {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)] , 'weight_decay': 0.01},
-        {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)] + [p for n, p in list(self.metric_module.named_parameters())] , 'weight_decay': 0.0}
-        ]
+      optimizer_weight = optim.Adam([self.A1], lr=self.args.lr_weight)
 
     if self.args.fp16:
       from apex.optimizers import FP16_Optimizer
@@ -366,20 +368,20 @@ class encoder_model (nn.Module) :
             for param_group in optimizer.param_groups:
               param_group['lr'] = lr_this_step
 
-          if self.args.average_layer:
-            print ('\ncheck gradient')
-            print (self.A1.grad[0:10])
-            print ('\nvalue')
-            print (self.A1[0:10])
-
           optimizer.step()
           optimizer.zero_grad()
           global_step += 1
 
-          if self.args.average_layer: ## must bound weights after calling @optimizer.step
-            self.A1.data[self.A1.data < 0] = 0
-            self.A1.data[self.A1.data > 1] = 1
+        if self.args.average_layer: ## must bound weights after calling @optimizer.step
+          optimizer_weight.step()
+          optimizer_weight.zero_grad()
+          self.A1.data[self.A1.data < 0] = 0.000001 ## exact 0 may not give any derivative
+          self.A1.data[self.A1.data > 1] = 0.999999
 
+      if self.args.average_layer:
+        print ('\nsee 1st few weight\n')
+        print (self.A1[0:100])
+        print ('\n\n')
 
       print ("\ntrain inner epoch {} loss {}".format(epoch,tr_loss))
       # eval at each epoch
@@ -574,7 +576,7 @@ class encoder_model (nn.Module) :
       with torch.no_grad():
         label_desc1.data = label_desc1.data[ : , 0:int(max(label_len1)) ] # trim down input to max len of the batch
         label_mask1.data = label_mask1.data[ : , 0:int(max(label_len1)) ] # trim down input to max len of the batch
-        label_emb1 = self.encode_label_desc(label_desc1,label_len1,label_mask1)
+        label_emb1 = self.encode_label_desc(label_desc1,label_len1,label_mask1.type(torch.FloatTensor).cuda())
         if self.args.reduce_cls_vec:
           label_emb1 = self.metric_module.reduce_vec_dim(label_emb1)
 

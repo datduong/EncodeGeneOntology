@@ -9,6 +9,8 @@ def get_args():
   parser = ArgumentParser(
       description='encode label descriptions into vectors')
 
+  parser.add_argument('--weight_decay', type=float, default=0,
+                      help='weight_decay')
   parser.add_argument('--lr', type=float, default=0.0001,
                       help='learning rate')
   parser.add_argument('--average_layer', action='store_true',
@@ -177,6 +179,7 @@ def get_args():
   parser.add_argument('--num_label_to_test', type=int, default=0, help='what if we test on subset')
   parser.add_argument('--label_subset_file', type=str, default=None, help='what if we test on subset')
   parser.add_argument('--ontology', type=str, default=None, help='mf bp cc') 
+  parser.add_argument('--add_name', type=str, default=None, help='some extra name to file') 
   parser.add_argument('--has_ppi_emb', action='store_true',help='has_ppi_emb to append to kmer-transformed vector, or some other transformation') 
   parser.add_argument('--prot_interact_vec_dim', type=int, default=0, help='extra info prot_interact_vec_dim from ppi network')
 

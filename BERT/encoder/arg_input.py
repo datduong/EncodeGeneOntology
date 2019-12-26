@@ -79,6 +79,10 @@ def get_args():
                       default="",
                       type=str,
                       help="Where do you want to store the pre-trained models downloaded from s3")
+  parser.add_argument("--lr_weight",
+                      default=1e-4,
+                      type=float,
+                      help="Step size of weight A1 will be different than other params ?? could be... otherwise we observe almost 1/2 weights")
   parser.add_argument("--learning_rate",
                       default=5e-5,
                       type=float,
@@ -105,7 +109,7 @@ def get_args():
                       help="local_rank for distributed training on gpus")
   parser.add_argument('--seed',
                       type=int,
-                      default=42,
+                      default=2019,
                       help="random seed for initialization")
   parser.add_argument('--gradient_accumulation_steps',
                       type=int,

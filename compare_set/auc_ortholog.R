@@ -44,7 +44,7 @@ for (ontology in c("all3") ) { ## "BP","CC","MF",
 
 	print (ontology)
 	## append
-	fin = 'qnliFormatData17/BertGOName768/GeneScore.txt'
+	fin = 'qnliFormatData17/cosine768Linear768Layer11+12nnParamOpW2/GeneScore.txt'
 	next_data_file = read.table(fin,header=F,sep='\t')
 	# gene1,gene2,trueLabel,score1,score2
 

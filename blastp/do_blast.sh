@@ -1,4 +1,104 @@
 
+## make fasta database 
+where_data='/u/scratch/d/datduong/deepgo/dataExpandGoSet/train/fold_1'
+cd $where_data
+for category in cc bp mf ; do 
+  /u/flashscratch/d/datduong/ncbi-blast-2.8.1+/bin/makeblastdb -in train-$category.fasta -dbtype prot -parse_seqids
+done
+
+
+## COMMENT do psiblast and blast 
+#!/bin/bash
+. /u/local/Modules/default/init/modules.sh
+where_data='/u/scratch/d/datduong/deepgo/data/train/fold_1'
+cd $where_data
+set_type='test' ## what do we test on, test/dev set ?? 
+for category in mf ; do 
+
+  result_dir=$where_data/'blastPsiblastResultEval10'
+  mkdir $result_dir
+
+  file_to_test=$set_type'-'$category'.fasta'
+
+  ## blast
+  fout2=$set_type'-'$category'.blast.txt'
+  /u/flashscratch/d/datduong/ncbi-blast-2.8.1+/bin/blastp -db train-$category.fasta -query $file_to_test -outfmt 10 -evalue 10 -out $result_dir/$fout2
+  sed -i 's/Search has CONVERGED!//g' $result_dir/$fout2
+
+  ## psiblast
+  fout1=$set_type'-'$category'.psiblast.txt'
+  /u/flashscratch/d/datduong/ncbi-blast-2.8.1+/bin/psiblast -num_threads 4 -db train-$category.fasta -query $file_to_test -num_iterations 3 -outfmt 10 -evalue 10 -out $result_dir/$fout1 
+  ## MUST REMOVE THE SINGLE LINE "Search has CONVERGED!"
+  sed -i 's/Search has CONVERGED!//g' $result_dir/$fout1
+done 
+
+## COMMENT tally outcome of blast and psiblast
+#!/bin/bash
+. /u/local/Modules/default/init/modules.sh
+module load python/3.7.2
+main_dir='/u/scratch/d/datduong/deepgo/data/train/'
+where_data=$main_dir/'fold_1/' # /u/scratch/d/datduong/deepgo/dataExpandGoSet/train/fold_1/test-mf.tsv
+set_type='test' ## what do we test on, test/dev set ?? 
+code_dir='/u/scratch/d/datduong/GOmultitask/blastp/'
+cd $code_dir
+for evalpoint in '1' '10' '100' ; do # '1' '0.1' '0.01' '0.001'
+  result_dir=$where_data/'blastPsiblastResultEval'$evalpoint'/'
+  for category in bp cc ; do # bp mf
+    all_test_label=$main_dir'deepgo'.$category.csv
+    label_subset_file=$main_dir/'deepgo.'$category'.csv' ## these are the GO terms to be tested 
+    blast=$result_dir/$set_type'-'$category'.blast.txt'
+    psiblast=$result_dir/$set_type'-'$category'.psiblast.txt'
+    python3 run_blast_psiblast.py $main_dir $where_data $result_dir $set_type $category $all_test_label > $result_dir/$category.output.txt
+  done
+done
+
+# # example Q92543
+# Q92543  GO:0005737;GO:0044424;GO:0044464 ## true 
+# ## prediction 
+# {'GO:0043226': 1.0, 'GO:0005737': 0.8487141278567016, 'GO:0005773': 0.8487141278567016, 'GO:0044424': 1.0, 'GO:0043229': 1.0, 'GO:0043231': 1.0, 'GO:0044464': 1.0, 'GO:0005768': 0.8487141278567016, 'GO:0043227': 1.0, 'GO:0005783': 0.2043133621577105, 'GO:0044444': 1.0}
+
+# O14200 ## best match 1 
+# O14200  GO:0005768;GO:0005773;GO:0043231;GO:0043229;GO:0043227;GO:0043226;GO:0044444;GO:0005737;GO:0044424;GO:0044464
+
+# O74444 ## best match 2
+# O74444  GO:0005783;GO:0043231;GO:0043229;GO:0043227;GO:0043226;GO:0044444;GO:0044424;GO:0044464
+
+
+## !!! combine blast with BERT/biLSTM/GCN
+
+#!/bin/bash
+. /u/local/Modules/default/init/modules.sh
+module load python/3.7.2
+
+main_dir='/u/scratch/d/datduong/deepgo/data/train/'
+
+where_data=$main_dir/'fold_1/'
+set_type='test' ## what do we test on, test/dev set ?? 
+
+code_dir='/u/scratch/d/datduong/GOmultitask/blastp/'
+cd $code_dir
+
+result_dir=$where_data/'blastPsiblastResult/'
+
+wordvec_file='/u/scratch/d/datduong/deepgo/data/cosine.768.reduce300ClsVec/label_vector.txt'
+
+for category in cc bp mf ; do # bp mf
+
+  label_subset_file='/u/scratch/d/datduong/deepgo/data/deepgo.'$category'.csv' ## these are the GO terms to be tested 
+  # wordvec_file_small='none'
+  wordvec_file_small='/u/scratch/d/datduong/deepgo/data/cosine.768.reduce300ClsVec/label_vector.deepgo.'$category'.txt' ## do not test against all GO database 
+  blast=$result_dir/$set_type'-'$category'.blast.txt'
+  psiblast=$result_dir/$set_type'-'$category'.psiblast.txt'
+
+  python3 do_expand_set.py $main_dir $where_data $result_dir $set_type $category $wordvec_file $wordvec_file_small $label_subset_file > $result_dir/'output.'$category'.txt'
+
+done
+
+
+
+
+
+
 
 ## make database 
 where_data='human-yeast-ecoli-L50-500-IsA-full/ProtDataJan19w300Base'

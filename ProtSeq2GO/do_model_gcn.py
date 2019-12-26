@@ -129,6 +129,8 @@ if args.ontology is None:
   add_name = ""
 else:
   add_name = '-' + args.ontology
+  if args.add_name is not None:
+    add_name = add_name + "-" + args.add_name
 
 train_loader = protSeqLoader.ProtLoader (args.data_dir, 'train'+add_name+'.tsv', all_name_array, MAX_SEQ_LEN, 'random', args, args.do_kmer, label_to_test)
 
@@ -272,5 +274,7 @@ prot2seq_model.load_state_dict( torch.load( os.path.join(args.result_folder,"bes
 ## load test set 
 test_loader = protSeqLoader.ProtLoader (args.data_dir, 'test'+add_name+'.tsv', all_name_array, MAX_SEQ_LEN, 'sequential', args, args.do_kmer, label_to_test)
 print ('\non test set\n')
-prot2seq_model.do_eval(test_loader, **other_params)
-
+result, preds, tr_loss = prot2seq_model.do_eval(test_loader, **other_params)
+print ('dim of prediction {}'.format(preds['prediction'].shape))
+## COMMENT save test set so that we can do analysis later 
+pickle.dump( preds, open( os.path.join(args.result_folder, "prediction_testset.pickle"),"wb") )

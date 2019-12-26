@@ -8,15 +8,15 @@ cd /u/scratch/d/datduong/GOmultitask/compare_set
 gapSize=300
 server='/u/scratch/d/datduong'
 
-pair='HumanFly'
+pair='FlyWorm'
 dataDir=$server/'geneOrtholog/'$pair'Score/qnliFormatData17'
 
 
-for output in cosine.bilstm.300Vec ; do # cosine.768.reduce300ClsVec GcnRelu300Cosine cosine.bilstm.300Vec 
+for output in Onto2vec300 ; do # cosine.768.reduce300ClsVec GcnRelu300Cosine cosine.bilstm.300Vec 
 
   finalDir=$server/'geneOrtholog/'$pair'Score/qnliFormatData17/'$output
 
-  for point in {0..10500..300}
+  for point in {0..3600..300}
   do 
 
     echo $point
@@ -47,8 +47,7 @@ server='/u/scratch/d/datduong'
 pair='Human'
 dataDir=$server/$pair'PPI3ontology/qnliFormatData17'
 
-
-for output in cosine.bilstm.300Vec GcnRelu300Cosine cosine.768.reduce300ClsVec ; do # cosine.768.reduce300ClsVec GcnRelu300Cosine cosine.bilstm.300Vec 
+for output in Onto2vec300 ; do # cosine.768.reduce300ClsVec GcnRelu300Cosine cosine.bilstm.300Vec 
 
   finalDir=$dataDir/$output
 
@@ -80,7 +79,7 @@ pair='Yeast'
 dataDir=$server/$pair'PPI3ontology/qnliFormatData17'
 
 
-for output in cosine.bilstm.300Vec GcnRelu300Cosine cosine.768.reduce300ClsVec ; do # cosine.768.reduce300ClsVec GcnRelu300Cosine cosine.bilstm.300Vec 
+for output in Onto2vec300 ; do # cosine.768.reduce300ClsVec GcnRelu300Cosine cosine.bilstm.300Vec  cosine.bilstm.300Vec GcnRelu300Cosine cosine.768.reduce300ClsVec
 
   finalDir=$dataDir/$output
 

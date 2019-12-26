@@ -25,24 +25,21 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from torch.nn.init import xavier_uniform_
 from torch.utils.data import DataLoader, Dataset, RandomSampler
 
-sys.path.append('/local/datdb/ProteinEmbMethodGithub/protein-sequence-embedding-iclr2019/')
-from src.alphabets import Uniprot21
-import src.scop as scop
-from src.utils import pack_sequences, unpack_sequences
-from src.utils import PairedDataset, AllPairsDataset, collate_paired_sequences
-from src.utils import MultinomialResample
-import src.models.embedding
-import src.models.comparison
-
-import fmax
+# sys.path.append('/local/datdb/ProteinEmbMethodGithub/protein-sequence-embedding-iclr2019/')
+# from src.alphabets import Uniprot21
+# import src.scop as scop
+# from src.utils import pack_sequences, unpack_sequences
+# from src.utils import PairedDataset, AllPairsDataset, collate_paired_sequences
+# from src.utils import MultinomialResample
+# import src.models.embedding
+# import src.models.comparison
 
 from scipy.special import expit
-
 from sklearn.metrics import f1_score
+# from torch_geometric.nn import GCNConv
 
-from torch_geometric.nn import GCNConv
-
-import evaluation_metric
+import evaluation_metric ##!! our own functions
+import fmax
 
 ## simple model to predict GO for protein sequences
 
@@ -155,7 +152,7 @@ class ProtSeq2GOBase (nn.Module):
   def make_optimizer (self):
 
     print ('\noptim function : {}'.format(self.args.optim_choice)) ## move in here, so that we can simply change @args.optim_choice and call @make_optimizer again
-    # if self.args.optim_choice == 'SGD':
+
     self.optim_choice = torch.optim.SGD
     if self.args.optim_choice == 'Adam':
       self.optim_choice = torch.optim.Adam
@@ -178,7 +175,7 @@ class ProtSeq2GOBase (nn.Module):
     for n,p in self.named_parameters():
       if p.requires_grad : print (n)
 
-    return self.optim_choice ( [p for n,p in param_list], lr=self.args.lr ) # , momentum=0.9
+    return self.optim_choice ( [p for n,p in param_list], lr=self.args.lr, weight_decay=self.args.weight_decay ) # , momentum=0.9
 
   def do_train(self, prot_loader, prot_dev_loader, **kwargs):
     torch.cuda.empty_cache()
@@ -187,6 +184,7 @@ class ProtSeq2GOBase (nn.Module):
 
     eval_acc = 0
     lowest_dev_loss = np.inf
+    last_best_epoch = 0
 
     for epoch in range( int(self.args.epoch)) :
 
@@ -195,7 +193,7 @@ class ProtSeq2GOBase (nn.Module):
 
       for step, batch in enumerate(tqdm(prot_loader, desc="epoch {}".format(epoch))):
 
-        batch = tuple(t for t in batch) # all_input_ids, all_input_len, all_input_mask, all_label_ids
+        batch = tuple(t for t in batch) # all_input_ids, all_input_len, all_input_mask, true_label
 
         with torch.no_grad():
           if self.args.has_ppi_emb:
@@ -206,7 +204,7 @@ class ProtSeq2GOBase (nn.Module):
         prot_idx = prot_idx[ :, 0:int(max(prot_len))] ## trim down
         mask = mask[ :, 0:int(max(prot_len))]
 
-        if self.args.has_ppi_emb:
+        if self.args.has_ppi_emb and (self.args.prot_interact_vec_dim>0):
           prot_interact_emb = prot_interact_emb.cuda()
         else:
           prot_interact_emb = None
@@ -232,31 +230,36 @@ class ProtSeq2GOBase (nn.Module):
       print ('\neval on dev data epoch {}'.format(epoch))
       result, preds, dev_loss = self.do_eval(prot_dev_loader,**kwargs)
 
-      if (dev_loss < lowest_dev_loss) :
+      if dev_loss < lowest_dev_loss :
         lowest_dev_loss = dev_loss
         print ("save best, lowest dev loss {}".format(lowest_dev_loss))
         torch.save(self.state_dict(), os.path.join(self.args.result_folder,"best_state_dict.pytorch"))
         last_best_epoch = epoch
+      # else:
+      #   if (epoch > 4) : ## don't decrease too quickly and too early, wait for later epoch
+      #     for g in optimizer.param_groups:
+      #       g['lr'] = g['lr'] * 0.8 ## update lr rate for next epoch
 
-      else:
-        if (epoch > 4) : ## don't decrease too quickly and too early, wait for later epoch
-          for g in optimizer.param_groups:
-            g['lr'] = g['lr'] * 0.8 ## update lr rate for next epoch
+      if (epoch > 2) : ## should not just quit after epoch 1
+        # if (epoch > 10) and (self.args.optim_choice == 'SGD'): ## only change lr if doing SGD
+        #   for g in optimizer.param_groups:
+        #     g['lr'] = g['lr'] * 0.5
 
-      if epoch - last_best_epoch > 10:
-        print ('\n\n\n**** break early \n\n\n')
-        print ("save last")
-        torch.save(self.state_dict(), os.path.join(self.args.result_folder,"last_state_dict.pytorch"))
-        return tr_loss
+        if (epoch - last_best_epoch > 5):
+          print ('\n\n\n**** break early \n\n\n')
+          print ("save last")
+          torch.save(self.state_dict(), os.path.join(self.args.result_folder,"last_state_dict.pytorch"))
+          return tr_loss
 
-      elif self.args.switch_sgd and (epoch - last_best_epoch > 4) and (self.args.optim_choice != 'SGD') :
-        ## SGD seems to always able to decrease DevSet loss. it is slow, so we don't start with SGD, we will use RMSprop then do SGD
-        print ('\n\nload back best state_dict\n\n')
-        self.load_state_dict( torch.load ( os.path.join(self.args.result_folder,"best_state_dict.pytorch") ) , strict=False )
-
-        print ('\n\nchange from {} to SGD\n\n'.format(self.args.optim_choice) )
-        self.args.optim_choice = 'SGD'
-        optimizer = self.make_optimizer()
+        elif self.args.switch_sgd and (epoch - last_best_epoch > 2) and (self.args.optim_choice != 'SGD') :
+          ## SGD seems to always able to decrease DevSet loss. it is slow, so we don't start with SGD, we will use RMSprop then do SGD
+          print ('\n\nload back best state_dict\n\n')
+          self.load_state_dict( torch.load ( os.path.join(self.args.result_folder,"best_state_dict.pytorch") ) , strict=False )
+          print ('\n\nchange from {} to SGD\n\n'.format(self.args.optim_choice) )
+          self.args.lr = 0.05 ##!! need large step size for SGD to converge faster
+          print ('update lr {}'.format(self.args.lr))
+          self.args.optim_choice = 'SGD'
+          optimizer = self.make_optimizer()
 
     print ("save last")
     torch.save(self.state_dict(), os.path.join(self.args.result_folder,"last_state_dict.pytorch"))
@@ -269,7 +272,7 @@ class ProtSeq2GOBase (nn.Module):
 
     tr_loss = 0
     preds = []
-    all_label_ids = []
+    true_label = []
 
     for step, batch in enumerate(prot_loader):
 
@@ -284,7 +287,7 @@ class ProtSeq2GOBase (nn.Module):
         prot_idx = prot_idx[ :, 0:int(max(prot_len))] ## trim down
         mask = mask[ :, 0:int(max(prot_len))]
 
-        if self.args.has_ppi_emb:
+        if self.args.has_ppi_emb and (self.args.prot_interact_vec_dim>0):
           prot_interact_emb = prot_interact_emb.cuda()
         else:
           prot_interact_emb = None
@@ -301,13 +304,13 @@ class ProtSeq2GOBase (nn.Module):
 
       if len(preds) == 0:
         preds.append(pred.detach().cpu().numpy())
-        all_label_ids.append(label_ids.detach().cpu().numpy())
+        true_label.append(label_ids.detach().cpu().numpy())
       else:
         preds[0] = np.append(preds[0], pred.detach().cpu().numpy(), axis=0)
-        all_label_ids[0] = np.append(all_label_ids[0], label_ids.detach().cpu().numpy(), axis=0) # row array
+        true_label[0] = np.append(true_label[0], label_ids.detach().cpu().numpy(), axis=0) # row array
 
     # end eval
-    all_label_ids = all_label_ids[0]
+    true_label = true_label[0]
     preds = preds[0]
 
     print ('loss {}'.format(tr_loss))
@@ -316,7 +319,7 @@ class ProtSeq2GOBase (nn.Module):
     print (preds)
 
     print ('true label')
-    print (all_label_ids)
+    print (true_label)
 
     trackF1macro = {}
     trackF1micro = {} # metrics["f1_micro"]
@@ -327,11 +330,11 @@ class ProtSeq2GOBase (nn.Module):
     trackMicroPrecision = {}
     trackMicroRecall = {}
 
-    ## DO NOT NEED TO DO THIS ALL THE TIME DURING TRAINING
-    if self.args.not_train:
-      rounding = np.arange(.1,1,.4)
-    else:
-      rounding = [0.5]
+    ##!! DO NOT NEED TO DO THIS ALL THE TIME DURING TRAINING
+    # if self.args.not_train:
+    #   rounding = np.arange(.1,1,.4)
+    # else:
+    rounding = [0.5]
 
     for round_cutoff in rounding:
 
@@ -339,7 +342,7 @@ class ProtSeq2GOBase (nn.Module):
 
       preds_round = 1.0*( round_cutoff < preds ) ## converted into 0/1
 
-      result = evaluation_metric.all_metrics ( preds_round , all_label_ids, yhat_raw=preds, k=[5,10,15,20,25]) ## we can pass vector of P@k and R@k
+      result = evaluation_metric.all_metrics ( preds_round , true_label, yhat_raw=preds, k=[5,10,15,20,25]) ## we can pass vector of P@k and R@k
       evaluation_metric.print_metrics( result )
 
       if 'full_data' not in trackF1macro:
@@ -357,7 +360,7 @@ class ProtSeq2GOBase (nn.Module):
         trackMacroRecall['full_data'].append(result["rec_macro"])
         trackMicroRecall['full_data'].append(result["rec_micro"])
 
-      if ('GoCount' in kwargs ) and (self.args.not_train): ## do not eed to do this all the time 
+      if ('GoCount' in kwargs ) and (self.args.not_train): ## do not eed to do this all the time
         print ('\n\nsee if method improves accuracy conditioned on frequency of GO terms')
 
         ## frequency less than 25 quantile  and over 75 quantile
@@ -365,7 +368,7 @@ class ProtSeq2GOBase (nn.Module):
 
         for cutoff in ['quant25','quant75','betweenQ25Q75']:
           ## indexing of the column to pull out , @pred is num_prot x num_go
-          result = evaluation_metric.all_metrics ( preds_round[: , kwargs[cutoff]] , all_label_ids[: , kwargs[cutoff]], yhat_raw=preds[: , kwargs[cutoff]], k=[5,10,15,20,25])
+          result = evaluation_metric.all_metrics ( preds_round[: , kwargs[cutoff]] , true_label[: , kwargs[cutoff]], yhat_raw=preds[: , kwargs[cutoff]], k=[5,10,15,20,25])
           print ("\nless than {} count".format(cutoff))
           evaluation_metric.print_metrics( result )
 
@@ -409,28 +412,27 @@ class ProtSeq2GOBase (nn.Module):
       for k,v in trackMicroRecall.items():
         print ('microRec ' + k + " " + " ".join(str(s) for s in v))
 
-    return result, preds, tr_loss
+    output = {'prediction':preds, 'truth':true_label} ##!! make life easier if we have both
+    return result, output, tr_loss
 
 
-class DeepGOFlatSeqOnly (ProtSeq2GOBase):
+class DeepGOFlatSeqOnly (ProtSeq2GOBase): ####
   ## run 1D or 2D conv then use attention layer
   def __init__(self,ProtEncoder, args, **kwargs):
     super().__init__(ProtEncoder, args, **kwargs)
-
     ## do not care about GO vectors, so only need to change forward to not take GO vectors
-    self.LinearRegression = nn.Linear( args.go_vec_dim + args.prot_vec_dim, args.num_label_to_test ) ## use trick
+    self.LinearRegression = nn.Linear( args.prot_vec_dim, args.num_label_to_test ) ## args.go_vec_dim +
     xavier_uniform_(self.LinearRegression.weight)
 
   def match_prob (self, prot_emb ) :
-    ## from deepgo Keras, we have single Dense(1) for each GO term. This is the same as linear projection
-    # prot_emb is batch x go_vec_dim
-    # prot_emb.unsqueeze(1) is batch x 1 x go_vec_dim , so that we can do broadcast pointwise multiplication
-    # self.LinearRegression.bias is 1D array
-
+    ##!! from deepgo Keras, we have single Dense(1) for each GO term. This is the same as linear projection
+    # @prot_emb is batch x go_vec_dim
+    # @prot_emb.unsqueeze(1) is batch x 1 x go_vec_dim , so that we can do broadcast pointwise multiplication
+    # @self.LinearRegression.bias is 1D array
     pred = self.LinearRegression.weight.mul(prot_emb.unsqueeze(1)).sum(2) + self.LinearRegression.bias ## dot-product sum up
     return pred
 
-  def forward( self, prot_idx, mask, prot_interact_emb, label_ids, **kwargs ): ## @go_emb should be joint train?
+  def forward( self, prot_idx, mask, prot_interact_emb, label_ids, **kwargs ): ##!! @prot_interact_emb not used but kept so keep consistency
     prot_emb = self.ProtEncoder ( prot_idx, **kwargs )
     pred = self.match_prob ( prot_emb )
     loss = self.classify_loss ( pred, label_ids.cuda() )
@@ -548,7 +550,8 @@ class DeepGOFlatSeqProtHwayGo (DeepGOFlatSeqProt):
     for n,p in self.named_parameters():
       if p.requires_grad : print (n)
 
-    return self.optim_choice ( [p for n,p in param_list], lr=self.args.lr ) # , momentum=0.9
+    #### add weight_decay... doesn't seem to help very much
+    return self.optim_choice ( [p for n,p in param_list], lr=self.args.lr, weight_decay=self.args.weight_decay ) # , momentum=0.9
 
   def concat_prot_go (self, prot_emb, go_emb):
 
@@ -724,49 +727,44 @@ class DeepGOTreeSeqProtHwayGo (DeepGOFlatSeqProtHwayGo):
     return pred, loss
 
 
-# class ProtSeq2GOBert (ProtSeq2GOGcn):
-#   ## run 1D or 2D conv then use attention layer
-#   def __init__(self,ProtEncoder, GOEncoder, args):
-#     super().__init__(ProtEncoder, GOEncoder, args)
+class DeepGOFlatSeqProtHwayGoNotUsePPI (DeepGOFlatSeqProtHwayGo):
 
-#   def bert_go_enc (self, label_desc_loader):
-#     # must send go description in batch mode ... slow ?
-#     # backprop on bert will be slow too ?
+  def __init__(self,ProtEncoder, GOEncoder, args, **kwargs):
 
-#     go_emb = torch.zeros(self.args.num_label_to_test, self.args.go_vec_dim)
-#     start = 0
+    super().__init__(ProtEncoder, GOEncoder, args, **kwargs)
 
-#     for step, batch in enumerate(label_desc_loader):
+    dim_in = args.prot_vec_dim + args.go_vec_dim #### do not have protein vec from network (no @prot_interact_vec_dim)
+    dim_out = args.prot_vec_dim
+    self.ReduceProtGoEmb = nn.Sequential(nn.Linear(dim_in, dim_out), nn.ReLU())
+    xavier_uniform_(self.ReduceProtGoEmb[0].weight)
 
-#       batch = tuple(t for t in batch)
-#       label_desc, label_len, label_mask = batch
+    self.LinearRegression = nn.Linear( dim_out*2 , args.num_label_to_test ) ## final layer
+    xavier_uniform_(self.LinearRegression.weight)
 
-#       label_desc.data = label_desc.data[ : , 0:int(max(label_len)) ] # trim down input to max len of the batch
-#       label_mask.data = label_mask.data[ : , 0:int(max(label_len)) ] # trim down input to max len of the batch
-#       label_emb = self.GOEncoder.encode_label_desc(label_desc,label_len,label_mask)
-#       if self.args.reduce_cls_vec: ## can use 768 output, or linear reduce to 300
-#         label_emb = self.GOEncoder.metric_module.reduce_vec_dim(label_emb)
+  def concat_prot_go (self, prot_emb, go_emb):
 
-#       end = start+label_desc.shape[0]
-#       go_emb[start:end] = label_emb
+    prot_emb = prot_emb.unsqueeze(1) ## make into 3D : batch x 1 x dim
+    prot_emb = prot_emb.expand(-1, self.args.num_label_to_test, -1 ) ## batch x num_go x dim ... -1 implies default
+    ## only need unsqueeze if we change the 2nd or 3rd dim
+    go_emb = go_emb.expand(prot_emb.shape[0], -1, -1 ) ## the -1 implies default dim. num_prot x num_go x dim (so we duplicated same matrix based on #prot
+    prot_go_vec = torch.cat((prot_emb,go_emb), dim=2) # append prot_emb with go_emb. prot_go_vec[0] is 1st protein in the batch concat with many go terms (its num. of row)
+    prot_go_vec = self.ReduceProtGoEmb (prot_go_vec) ## somehow make interaction between prot and go
+    prot_go_vec = torch.cat ( (prot_emb , prot_go_vec) , dim=2 ) ## append to f(prot_emb,go_emb)
 
-#       start = end ## next position
+    return prot_go_vec ## output shape batch x num_go x dim
 
-#     return go_emb
+  def forward( self, prot_idx, mask, prot_interact_emb, label_ids, **kwargs ):
 
-#   def forward( self, prot_idx, mask, **kwargs ):
-#     ## @go_emb should be joint train?
-#     # go_emb will be computed each time. so it's costly ?
-#     go_emb = self.GOEncoder.bert_go_enc(kwargs['labeldesc_loader'])
-
-#     # prot_emb is usually fast, because we don't update it ?
-#     prot_emb = self.maxpool_prot_emb ( prot_idx, mask )
-#     pred = self.match_prob ( prot_emb, go_emb )
-#     return pred
-
-
-
-
-
+    ## test what happens if we just use sequence and go vector, not use PPI
+    go_emb = kwargs['go_emb']
+    prot_emb = self.ProtEncoder ( prot_idx, **kwargs ) ## output is batch x dim if we use deepgo. possible we need to change later.
+    ## do not append @prot_emb to vector from prot-prot interaction network
+    ## somehow ... account for the GO vectors
+    ## testing on subset, so we call kwargs['label_to_test_index']
+    ## if we don't care about using graph/ or children terms, then @label_to_test_index should be just simple index 0,1,2,3,....
+    prot_go_vec = self.concat_prot_go ( prot_emb, go_emb[kwargs['label_to_test_index']] ) ## output shape batch x num_go x dim
+    pred = self.LinearRegression.weight.mul(prot_go_vec).sum(2) + self.LinearRegression.bias ## dot-product sum up
+    loss = self.classify_loss ( pred, label_ids.cuda() )
+    return pred, loss
 
 

@@ -258,6 +258,9 @@ if args.model_choice == 'DeepGOFlatSeqOnly':
 if args.model_choice == 'DeepGOFlatSeqProtHwayGo':
   prot2seq_model = ProtSeq2GOModel.DeepGOFlatSeqProtHwayGo (ProtEncoder, GOEncoder, args, **other_params)
 
+if args.model_choice == 'DeepGOFlatSeqProtHwayGoNotUsePPI':
+  prot2seq_model = ProtSeq2GOModel.DeepGOFlatSeqProtHwayGoNotUsePPI (ProtEncoder, GOEncoder, args, **other_params)
+
 if args.model_choice == 'DeepGOTreeSeqProtHwayGo':
   prot2seq_model = ProtSeq2GOModel.DeepGOTreeSeqProtHwayGo (ProtEncoder, GOEncoder, args, **other_params)
 

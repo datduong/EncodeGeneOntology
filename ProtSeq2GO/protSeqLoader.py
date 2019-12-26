@@ -11,7 +11,7 @@ from tqdm import tqdm, trange
 
 from pytorch_pretrained_bert.tokenization import BertTokenizer, load_vocab, whitespace_tokenize
 
-sys.path.append('/u/flashscratch/d/datduong/protein-sequence-embedding-iclr2019/')
+sys.path.append('/local/datdb/ProteinEmbMethodGithub/protein-sequence-embedding-iclr2019/')
 from src.alphabets import Uniprot21
 
 logger = logging.getLogger(__name__)
