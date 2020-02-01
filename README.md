@@ -16,5 +16,5 @@
 
 Consider the example here. 
 
-![GoTermExampl](Figure/GoTermExample.png)
+![GoTermExampl|50%](Figure/GoTermExample.png)
 
