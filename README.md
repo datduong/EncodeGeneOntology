@@ -12,7 +12,7 @@
   1. GCN
   2. Onto2vec
 
-## The key objective is to capture the relatedness of GO terms by encoding them into similar vectors. 
+### The key objective is to capture the relatedness of GO terms by encoding them into similar vectors. 
 
 Consider the example below. We would expect child-parent terms to have similar vector embeddings; whereas, two unrelated terms should have different embeddings. Moreover, child-parent terms are in the same neighborhood, so that the position embeddings should also be the same. 
 
