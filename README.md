@@ -22,6 +22,8 @@ Consider the example below. We would expect child-parent terms to have similar v
 
 We embed the [definition](https://www.ebi.ac.uk/QuickGO/term/GO:0075295) of a term. The key is that child-parent terms often have simlar defintions, so that we can embed them into comparable vectors. 
 
-All models are already trained, and ready to be used. You can download the embeddings here. 
+All models are already trained, and ready to be used. **[You can download the embeddings here.](https://drive.google.com/drive/folders/129UObLlhnp0RK6MQAS7waUF-k4SuGV-u?usp=sharing)** 
+
+Alternatively, you can also train your own embedding. 
 
 
