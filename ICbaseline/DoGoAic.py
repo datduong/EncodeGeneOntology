@@ -21,7 +21,7 @@ from compare_set import compare_set
 import GoAic
 
 
-def ic2dict(ic): ## gaf file to dict {gene:[go]}
+def PutIc2Dict(ic): ## gaf file to dict {gene:[go]}
   df = pd.read_csv(ic,sep="\t", header=None)
   df.columns = ['GO','IC']
   # https://stackoverflow.com/questions/26684199/long-format-pandas-dataframe-to-dictionary
@@ -52,7 +52,7 @@ def submitJobs (onto_type) :
 
     print ('\n\nspecies {}'.format(species))
 
-    IcGO = ic2dict('ICdata/'+species+'Ic'+onto_type+'.txt')
+    IcGO = PutIc2Dict('ICdata/'+species+'Ic'+onto_type+'.txt')
     ## compare 2 GO terms, we want to see what the range is, and how IC can affect each species
 
     input_file = 'random_go_analysis_'+onto_type.lower()+'.tsv'

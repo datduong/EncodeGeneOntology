@@ -52,29 +52,23 @@ class ConcatCompare (nn.Module):
     super().__init__()
 
     ## do we need 3 layers ? probably depend on complexity of the problem.
-
-    self.CompareVec = nn.Sequential(nn.Linear(dim_in, dim_in//2),
-                                    nn.Tanh(),
-                                    nn.Dropout(kwargs['dropout']),
-                                    nn.Linear(dim_in//2, dim_in//4),
-                                    nn.Tanh(),
-                                    nn.Dropout(kwargs['dropout']),
+    self.CompareVec = nn.Sequential(nn.Linear(dim_in, dim_in//4),
+                                    nn.ReLU(),
+                                    nn.Linear(dim_in//4, dim_in//4),
+                                    nn.ReLU(),
                                     nn.Linear(dim_in//4, dim_out))
 
-    ## good initial values for optim
-    for i in [0,3,6]:
+    for i in [0,2,4]: ## good initial values for optim
       xavier_uniform_(self.CompareVec[i].weight)
 
   def forward(self,vec1,vec2):
     ## must make sure @vec1 @vec2 have proper dim.
     ## @vec1 @vec2 can be 2D matrix or 3D matrix
-
     ## takes 2 vectors x, y (same dimension)
     ## do x*y (pointwise) then abs(x-y), then concat to x,y
     pointwise_interaction = vec1 * vec2
     abs_diff = torch.abs(vec1-vec2)
     combine_vec = torch.cat ((vec1,vec2,pointwise_interaction,abs_diff), dim = 2) ## batch x num_go x dim
-
     return self.CompareVec(combine_vec).squeeze(2) ## make into 2D
 
 
@@ -140,10 +134,10 @@ class ProtSeq2GOBase (nn.Module):
     self.classify_loss = nn.BCEWithLogitsLoss()
     # self.classify_loss = nn.BCELoss()
 
-  def maxpool_prot_emb (self,prot_idx,mask):
+  def maxpool_prot_emb (self,prot_idx,mask): ##!! we can probably remove @mask
     pass
 
-  def match_prob (self, prot_emb, go_emb ) :
+  def match_prob (self, aa_emb, go_emb ) :
     pass
 
   def forward( self, prot_idx, mask, prot_interact_emb, label_ids, **kwargs ):
@@ -175,7 +169,10 @@ class ProtSeq2GOBase (nn.Module):
     for n,p in self.named_parameters():
       if p.requires_grad : print (n)
 
-    return self.optim_choice ( [p for n,p in param_list], lr=self.args.lr, weight_decay=self.args.weight_decay ) # , momentum=0.9
+    if self.args.optim_choice == 'SGD':
+      return self.optim_choice ( [p for n,p in param_list], lr=self.args.lr, weight_decay=self.args.weight_decay, momentum=0.9 )
+    else:
+      return self.optim_choice ( [p for n,p in param_list], lr=self.args.lr, weight_decay=self.args.weight_decay )
 
   def do_train(self, prot_loader, prot_dev_loader, **kwargs):
     torch.cuda.empty_cache()
@@ -235,31 +232,32 @@ class ProtSeq2GOBase (nn.Module):
         print ("save best, lowest dev loss {}".format(lowest_dev_loss))
         torch.save(self.state_dict(), os.path.join(self.args.result_folder,"best_state_dict.pytorch"))
         last_best_epoch = epoch
-      # else:
-      #   if (epoch > 4) : ## don't decrease too quickly and too early, wait for later epoch
-      #     for g in optimizer.param_groups:
-      #       g['lr'] = g['lr'] * 0.8 ## update lr rate for next epoch
+      else:
+        if (epoch > 2) and (epoch%2==0)  : ## don't decrease too quickly and too early, wait for later epoch
+          for g in optimizer.param_groups:
+            g['lr'] = g['lr'] * 0.8 ## update lr rate for next epoch
 
       if (epoch > 2) : ## should not just quit after epoch 1
-        # if (epoch > 10) and (self.args.optim_choice == 'SGD'): ## only change lr if doing SGD
-        #   for g in optimizer.param_groups:
-        #     g['lr'] = g['lr'] * 0.5
 
-        if (epoch - last_best_epoch > 5):
-          print ('\n\n\n**** break early \n\n\n')
-          print ("save last")
-          torch.save(self.state_dict(), os.path.join(self.args.result_folder,"last_state_dict.pytorch"))
-          return tr_loss
+        if (epoch - last_best_epoch > 5) :
+          if (self.args.optim_choice == 'SGD') or (epoch>20): ##!!##!! only break early after switch to SGD, or long enough epoch
+            print ('\n\n\n**** break early \n\n\n')
+            print ("save last")
+            torch.save(self.state_dict(), os.path.join(self.args.result_folder,"last_state_dict.pytorch"))
+            return tr_loss
 
-        elif self.args.switch_sgd and (epoch - last_best_epoch > 2) and (self.args.optim_choice != 'SGD') :
+        elif self.args.switch_sgd and (epoch - last_best_epoch >= 4) and (self.args.optim_choice != 'SGD') :
+          ## do not switch SGD too quickly
           ## SGD seems to always able to decrease DevSet loss. it is slow, so we don't start with SGD, we will use RMSprop then do SGD
           print ('\n\nload back best state_dict\n\n')
           self.load_state_dict( torch.load ( os.path.join(self.args.result_folder,"best_state_dict.pytorch") ) , strict=False )
           print ('\n\nchange from {} to SGD\n\n'.format(self.args.optim_choice) )
-          self.args.lr = 0.05 ##!! need large step size for SGD to converge faster
+          self.args.lr = self.args.sgd_lr ##!! need large step size for SGD to converge faster
           print ('update lr {}'.format(self.args.lr))
           self.args.optim_choice = 'SGD'
           optimizer = self.make_optimizer()
+          last_best_epoch = epoch ##!! update so that we will stop early wrt. the SGD time point
+
 
     print ("save last")
     torch.save(self.state_dict(), os.path.join(self.args.result_folder,"last_state_dict.pytorch"))
@@ -342,7 +340,7 @@ class ProtSeq2GOBase (nn.Module):
 
       preds_round = 1.0*( round_cutoff < preds ) ## converted into 0/1
 
-      result = evaluation_metric.all_metrics ( preds_round , true_label, yhat_raw=preds, k=[5,10,15,20,25]) ## we can pass vector of P@k and R@k
+      result = evaluation_metric.all_metrics ( preds_round , true_label, yhat_raw=preds, k=[10,20]) ## we can pass vector of P@k and R@k
       evaluation_metric.print_metrics( result )
 
       if 'full_data' not in trackF1macro:
@@ -368,7 +366,7 @@ class ProtSeq2GOBase (nn.Module):
 
         for cutoff in ['quant25','quant75','betweenQ25Q75']:
           ## indexing of the column to pull out , @pred is num_prot x num_go
-          result = evaluation_metric.all_metrics ( preds_round[: , kwargs[cutoff]] , true_label[: , kwargs[cutoff]], yhat_raw=preds[: , kwargs[cutoff]], k=[5,10,15,20,25])
+          result = evaluation_metric.all_metrics ( preds_round[: , kwargs[cutoff]] , true_label[: , kwargs[cutoff]], yhat_raw=preds[: , kwargs[cutoff]], k=[10,20])
           print ("\nless than {} count".format(cutoff))
           evaluation_metric.print_metrics( result )
 
@@ -421,20 +419,36 @@ class DeepGOFlatSeqOnly (ProtSeq2GOBase): ####
   def __init__(self,ProtEncoder, args, **kwargs):
     super().__init__(ProtEncoder, args, **kwargs)
     ## do not care about GO vectors, so only need to change forward to not take GO vectors
-    self.LinearRegression = nn.Linear( args.prot_vec_dim, args.num_label_to_test ) ## args.go_vec_dim +
+
+    ##!!##!! let's try adding more layers
+    if self.args.extra_linear_layer: ##!!
+      self.extra_layer = nn.Sequential ( nn.Linear(args.prot_vec_dim, args.prot_vec_dim),
+                                         nn.ReLU() )
+
+      xavier_uniform_(self.extra_layer[0].weight)
+
+      self.LinearRegression = nn.Linear( args.prot_vec_dim, args.num_label_to_test ) ## args.go_vec_dim +
+
+    else:
+      self.LinearRegression = nn.Linear( args.prot_vec_dim, args.num_label_to_test ) ## args.go_vec_dim +
+
+    ##
     xavier_uniform_(self.LinearRegression.weight)
 
-  def match_prob (self, prot_emb ) :
+  def match_prob (self, aa_emb ) :
     ##!! from deepgo Keras, we have single Dense(1) for each GO term. This is the same as linear projection
-    # @prot_emb is batch x go_vec_dim
-    # @prot_emb.unsqueeze(1) is batch x 1 x go_vec_dim , so that we can do broadcast pointwise multiplication
+    # @aa_emb is batch x go_vec_dim
+    # @aa_emb.unsqueeze(1) is batch x 1 x prot_vec_dim , so that we can do broadcast pointwise multiplication
     # @self.LinearRegression.bias is 1D array
-    pred = self.LinearRegression.weight.mul(prot_emb.unsqueeze(1)).sum(2) + self.LinearRegression.bias ## dot-product sum up
+    pred = self.LinearRegression.weight.mul(aa_emb.unsqueeze(1)).sum(2) + self.LinearRegression.bias ## dot-product sum up
     return pred
 
   def forward( self, prot_idx, mask, prot_interact_emb, label_ids, **kwargs ): ##!! @prot_interact_emb not used but kept so keep consistency
-    prot_emb = self.ProtEncoder ( prot_idx, **kwargs )
-    pred = self.match_prob ( prot_emb )
+    aa_emb = self.ProtEncoder ( prot_idx, **kwargs )
+    if self.args.extra_linear_layer: ##!! add in extra layer if needed
+      aa_emb = self.extra_layer(aa_emb) # @aa_emb is batch x prot_vec_dim, now make it batch x go_vec_dim + prot_vec_dim
+
+    pred = self.match_prob ( aa_emb )
     loss = self.classify_loss ( pred, label_ids.cuda() )
     return pred, loss
 
@@ -443,14 +457,14 @@ class DeepGOFlatSeqProt (DeepGOFlatSeqOnly):
   ## run 1D or 2D conv then use attention layer
   def __init__(self,ProtEncoder, args, **kwargs):
     super().__init__(ProtEncoder, args, **kwargs)
-    self.LinearRegression = nn.Linear( args.go_vec_dim + args.prot_vec_dim + args.prot_interact_vec_dim, args.num_label_to_test ) ## 3 items, go vec, prot vec by some encoder, and prot vec made by some interaction network
+    self.LinearRegression = nn.Linear( args.prot_vec_dim + args.prot_interact_vec_dim, args.num_label_to_test ) ## 3 items, go vec, prot vec by some encoder, and prot vec made by some interaction network
     xavier_uniform_(self.LinearRegression.weight)
 
   def forward( self, prot_idx, mask, prot_interact_emb, label_ids, **kwargs ):
-    prot_emb = self.ProtEncoder ( prot_idx, **kwargs )
-    ## append the prot_emb by kmer (or some other method) with its vector from a prot-prot interaction network
-    prot_emb = torch.cat ( (prot_emb , prot_interact_emb) , dim=1 ) ## out put is 2D, batch x ( prot_emb_dim + prot_interact_emb_dim )
-    pred = self.match_prob ( prot_emb )
+    aa_emb = self.ProtEncoder ( prot_idx, **kwargs )
+    ## append the aa_emb by kmer (or some other method) with its vector from a prot-prot interaction network
+    aa_emb = torch.cat ( (aa_emb , prot_interact_emb) , dim=1 ) ## out put is 2D, batch x ( prot_emb_dim + prot_interact_emb_dim )
+    pred = self.match_prob ( aa_emb )
     loss = self.classify_loss ( pred, label_ids.cuda() )
     return pred, loss
 
@@ -464,8 +478,8 @@ class DeepGOTreeSeqOnly (DeepGOFlatSeqOnly):
     self.loss_type = 'BCE'
 
   def forward( self, prot_idx, mask, prot_interact_emb, label_ids, **kwargs ): ## @go_emb should be joint train?
-    prot_emb = self.ProtEncoder ( prot_idx, **kwargs )
-    pred = self.match_prob ( prot_emb )
+    aa_emb = self.ProtEncoder ( prot_idx, **kwargs )
+    pred = self.match_prob ( aa_emb )
     pred = F.sigmoid(pred) ## size batch x all_terms_in_ontology because for 1 node, we need to get all its children. we can do careful selection later to save gpu memmory
     pred = self.maxpoolNodeLayer.forward ( pred )
     loss = self.classify_loss ( pred, label_ids.cuda() )
@@ -481,9 +495,9 @@ class DeepGOTreeSeqProt (DeepGOTreeSeqOnly):
     xavier_uniform_(self.LinearRegression.weight)
 
   def forward( self, prot_idx, mask, prot_interact_emb, label_ids, **kwargs ): ## @go_emb should be joint train?
-    prot_emb = self.ProtEncoder ( prot_idx, **kwargs )
-    prot_emb = torch.cat ( (prot_emb , prot_interact_emb) , dim=1 )
-    pred = self.match_prob ( prot_emb )
+    aa_emb = self.ProtEncoder ( prot_idx, **kwargs )
+    aa_emb = torch.cat ( (aa_emb , prot_interact_emb) , dim=1 )
+    pred = self.match_prob ( aa_emb )
     pred = F.sigmoid(pred) ## size batch x all_terms_in_ontology because for 1 node, we need to get all its children. we can do careful selection later to save gpu memmory
     pred = self.maxpoolNodeLayer.forward ( pred )
     loss = self.classify_loss ( pred, label_ids.cuda() )
@@ -499,22 +513,16 @@ class DeepGOFlatSeqProtHwayGo (DeepGOFlatSeqProt):
       for p in self.GOEncoder.parameters():
         p.requires_grad=False
 
-    ## prot encoder (from deepgo has dim ~1088)
-    ## transform only original prot vector (not adding in ppi-vector)
-    ## make into same dim as go vector
-    # self.ReduceProtEmb = nn.Linear(args.prot_vec_dim, args.go_vec_dim)
-    # xavier_uniform_(self.ReduceProtEmb.weight)
-
     dim_in = args.prot_vec_dim + args.prot_interact_vec_dim + args.go_vec_dim
-    dim_out = args.prot_vec_dim + args.prot_interact_vec_dim
+    dim_out = dim_in//3 ##!!
     self.ReduceProtGoEmb = nn.Sequential(nn.Linear(dim_in, dim_out),
                                          nn.ReLU())
 
     xavier_uniform_(self.ReduceProtGoEmb[0].weight)
-    # xavier_uniform_(self.ReduceProtGoEmb[3].weight)
 
     ## notice we change dim of this Linear Layer
-    self.LinearRegression = nn.Linear( dim_out*2 , args.num_label_to_test )
+    self.LinearRegression = nn.Linear( dim_in + dim_out ,
+                                       args.num_label_to_test )
     xavier_uniform_(self.LinearRegression.weight)
 
   def make_optimizer (self):
@@ -550,59 +558,41 @@ class DeepGOFlatSeqProtHwayGo (DeepGOFlatSeqProt):
     for n,p in self.named_parameters():
       if p.requires_grad : print (n)
 
-    #### add weight_decay... doesn't seem to help very much
-    return self.optim_choice ( [p for n,p in param_list], lr=self.args.lr, weight_decay=self.args.weight_decay ) # , momentum=0.9
+    if self.args.optim_choice == 'SGD':
+      return self.optim_choice ( [p for n,p in param_list], lr=self.args.lr, weight_decay=self.args.weight_decay, momentum=0.9 )
+    else:
+      return self.optim_choice ( [p for n,p in param_list], lr=self.args.lr, weight_decay=self.args.weight_decay )
 
-  def concat_prot_go (self, prot_emb, go_emb):
 
-    ## should we do one single model for all GO terms ? or each different model for each GO term ?
+  def interaction_aa_prot_go_emb (self, aa_emb_prot_emb, go_emb):
 
-    ## reduce sparse prot vector into dense space ~1000 --> 300
-    ## OR .... we expland go_emb 300 --> ~1000
+    aa_emb_prot_emb = aa_emb_prot_emb.unsqueeze(1) ## make into 3D : batch x 1 x dim
+    aa_emb_prot_emb = aa_emb_prot_emb.expand(-1, self.args.num_label_to_test, -1 ) ## batch x num_go x dim ... -1 implies default
 
-    prot_emb = prot_emb.unsqueeze(1) ## make into 3D : batch x 1 x dim
-    prot_emb = prot_emb.expand(-1, self.args.num_label_to_test, -1 ) ## batch x num_go x dim ... -1 implies default
+    go_emb = go_emb.expand(aa_emb_prot_emb.shape[0], -1, -1 ) ## the -1 implies default dim. num_prot x num_go x dim (so we duplicated same matrix based on #prot
+    aa_emb_prot_emb_go_emb = torch.cat((aa_emb_prot_emb,go_emb), dim=2) # append aa_emb_prot_emb_go_emb with go_emb. aa_emb_prot_emb_go_emb[0] is 1st protein in the batch concat with many go terms (its num. of row)
+    aa_emb_prot_emb_go_emb = self.ReduceProtGoEmb (aa_emb_prot_emb_go_emb) ## somehow make interaction between aa emb, prot emb and go emb
 
-    ## only need unsqueeze if we change the 2nd or 3rd dim
-    go_emb = go_emb.expand(prot_emb.shape[0], -1, -1 ) ## the -1 implies default dim. num_prot x num_go x dim (so we duplicated same matrix based on #prot
+    aa_emb_prot_emb_go_emb = torch.cat ( (aa_emb_prot_emb , go_emb , aa_emb_prot_emb_go_emb) , dim=2 ) ##
 
-    prot_go_vec = torch.cat((prot_emb,go_emb), dim=2) # append prot_emb with go_emb. prot_go_vec[0] is 1st protein in the batch concat with many go terms (its num. of row)
-
-    prot_go_vec = self.ReduceProtGoEmb (prot_go_vec) ## somehow make interaction between prot and go
-
-    prot_go_vec = torch.cat ( (prot_emb , prot_go_vec) , dim=2 ) ## append to f(prot_emb,go_emb)
-
-    return prot_go_vec ## output shape batch x num_go x dim
+    return aa_emb_prot_emb_go_emb ## output shape batch x num_go x dim
 
   def forward( self, prot_idx, mask, prot_interact_emb, label_ids, **kwargs ):
     ## @go_emb should be joint train?
-    # go_emb will be computed each time. so it's costly ?
-
     ## Because of GCN, GO vectors not in subset will influence GO vectors inside subset, so we have to run GCN on the whole graph ? ... probably yes
-    ## **** TO SAVE SOME TIME, IF WE DON'T UPDATE LABEL DESCRIPTION, WE CAN COMPUTE IT AHEAD OF TIME.
-    # if self.args.fix_go_emb:
-    go_emb = kwargs['go_emb']
+    ## TO SAVE SOME TIME, IF WE DON'T UPDATE LABEL DESCRIPTION, WE CAN COMPUTE IT AHEAD OF TIME.
 
-    # else:
-    #   go_emb = self.GOEncoder.gcn_2layer(kwargs['labeldesc_loader'],kwargs['edge_index']) ## go_emb is num_go x dim
-    #   go_emb = F.normalize(go_emb,dim=1) ## go emb were trained based on cosine, so we have norm to length=1, this normalization will get similar GO to have truly similar vectors.
+    if self.args.normalize_go_vec:
+      go_emb = F.normalize(  kwargs['go_emb'] ) ##!!
+    else:
+      go_emb = kwargs['go_emb'] ##!!
 
-    # prot_emb is usually fast, because we don't update it ? must update if we use deepgo approach
-    prot_emb = self.ProtEncoder ( prot_idx, **kwargs ) ## output is batch x dim if we use deepgo. possible we need to change later.
+    aa_emb = self.ProtEncoder ( prot_idx, **kwargs ) ## output is batch x dim if we use deepgo. possible we need to change later.
 
-    ## append @prot_emb to vector from prot-prot interaction network
-    prot_emb = torch.cat ( (prot_emb, prot_interact_emb) , dim=1 ) ## append to known ppi-network
+    aa_emb_prot_emb = torch.cat ( (aa_emb, prot_interact_emb) , dim=1 ) ## append to known ppi-network batch x dim
+    aa_emb_prot_emb_go_emb = self.interaction_aa_prot_go_emb ( aa_emb_prot_emb, go_emb ) ## output shape batch x num_go x dim
 
-    ## somehow ... account for the GO vectors
-    ## highway network for @prot_emb_concat
-
-    ## testing on subset, so we call kwargs['label_to_test_index']
-    ## if we don't care about using graph/ or children terms, then @label_to_test_index should be just simple index 0,1,2,3,....
-    prot_go_vec = self.concat_prot_go ( prot_emb, go_emb[kwargs['label_to_test_index']] ) ## output shape batch x num_go x dim
-
-    ## testing on subset
-    pred = self.LinearRegression.weight.mul(prot_go_vec).sum(2) + self.LinearRegression.bias ## dot-product sum up
-
+    pred = self.LinearRegression.weight.mul(aa_emb_prot_emb_go_emb).sum(2) + self.LinearRegression.bias ## dot-product sum up
     loss = self.classify_loss ( pred, label_ids.cuda() )
 
     return pred, loss
@@ -612,37 +602,32 @@ class DeepGOFlatSeqProtHwayNotUseGo (DeepGOFlatSeqProtHwayGo):
 
   def __init__(self,ProtEncoder, GOEncoder, args, **kwargs):
 
-    ## this object is meant to show that using the extra highway network without GO vector DOES NOT IMPROVE RESULTS
+    ##!!##!! this object is meant to show that using the extra highway network without GO vector DOES NOT IMPROVE RESULTS
 
     super().__init__(ProtEncoder, GOEncoder, args, **kwargs)
 
-    dim_in = args.prot_vec_dim + args.prot_interact_vec_dim ## INSTEAD OF HAVING GO VEC, WE HAVE EXTRA @prot_vec_dim
-    dim_out = args.prot_vec_dim + args.prot_interact_vec_dim
+    dim_in = args.prot_vec_dim + args.prot_interact_vec_dim
+    dim_out = dim_in//2 ##!!##!!
     self.ReduceProtGoEmb = nn.Sequential(nn.Linear(dim_in, dim_out),
-                                         nn.ReLU())
+                                         nn.ReLU() )
 
     xavier_uniform_(self.ReduceProtGoEmb[0].weight)
-    # xavier_uniform_(self.ReduceProtGoEmb[3].weight)
 
     ## notice we change dim of this Linear Layer
-    self.LinearRegression = nn.Linear( dim_out*2 , args.num_label_to_test )
+    self.LinearRegression = nn.Linear( dim_in + dim_out ,
+                                       args.num_label_to_test )
     xavier_uniform_(self.LinearRegression.weight)
 
   def forward( self, prot_idx, mask, prot_interact_emb, label_ids, **kwargs ):
 
-    # prot_emb is usually fast, because we don't update it ? must update if we use deepgo approach
-    prot_emb = self.ProtEncoder ( prot_idx, **kwargs ) ## output is batch x dim if we use deepgo. possible we need to change later.
+    # aa_emb is usually fast, because we don't update it ? must update if we use deepgo approach
+    aa_emb = self.ProtEncoder ( prot_idx, **kwargs ) ## output is batch x dim if we use deepgo. possible we need to change later.
 
-    ## append @prot_emb to vector from prot-prot interaction network
-    prot_emb = torch.cat ( (prot_emb, prot_interact_emb) , dim=1 ) ## append to known ppi-network
+    aa_emb_prot_emb = torch.cat ( (aa_emb, prot_interact_emb) , dim=1 ) ## append to known ppi-network
+    aa_emb_prot_emb = self.ReduceProtGoEmb (aa_emb_prot_emb) ##!!##!! CREATE INTERACTION TERM BUT DO NOT USE GO VECTOR
+    aa_emb_prot_emb = torch.cat ( (aa_emb, prot_interact_emb, aa_emb_prot_emb), dim=1 ) ## this is num_batch x dim
 
-    ## CREATE INTERACTION TERM BUT DO NOT USE GO VECTOR
-    prot_emb_interaction_term = self.ReduceProtGoEmb (prot_emb)
-
-    prot_emb = torch.cat ( (prot_emb, prot_emb_interaction_term), dim=1 ) ## this is num_batch x dim
-
-    ## testing on subset
-    pred = self.LinearRegression.weight.mul(prot_emb.unsqueeze(1)).sum(2) + self.LinearRegression.bias ## dot-product sum up
+    pred = self.LinearRegression.weight.mul(aa_emb_prot_emb.unsqueeze(1)).sum(2) + self.LinearRegression.bias ## dot-product sum up
     loss = self.classify_loss ( pred, label_ids.cuda() )
 
     return pred, loss
@@ -656,73 +641,70 @@ class DeepGOFlatSeqProtConcatGo (DeepGOFlatSeqProt):
       for p in self.GOEncoder.parameters():
         p.requires_grad=False
 
-    dim_in = 4*(args.prot_vec_dim + args.prot_interact_vec_dim) ## times 4 because we have 4 vectors as input (see function @ConcatCompare)
+    self.LinearProtVec = nn.Sequential(nn.Linear(args.prot_vec_dim+args.prot_interact_vec_dim, args.go_vec_dim ),
+                                       nn.ReLU() ,
+                                       nn.Linear(args.go_vec_dim, args.go_vec_dim ))
+
+    xavier_uniform_(self.LinearProtVec[0].weight)
+    xavier_uniform_(self.LinearProtVec[2].weight)
+
+    dim_in = 4*args.go_vec_dim ## times 4 because we have 4 vectors as input (see function @ConcatCompare)
     self.CompareMetric = ConcatCompare(dim_in,1,**kwargs) ## predict yes/no, so output is dim 1
+
+    self.LinearRegression = None ##!!##!! remove this layer otherwise will get error for zeroshot experiments
 
   def forward (self, prot_idx, mask, prot_interact_emb, label_ids, **kwargs):
 
-    ## Because of GCN, GO vectors not in subset will influence GO vectors inside subset, so we have to run GCN on the whole graph ? ... probably yes
-    go_emb = self.GOEncoder.gcn_2layer(kwargs['labeldesc_loader'],kwargs['edge_index']) ## go_emb is num_go x dim
-    go_emb = F.normalize(go_emb,dim=1) ## go emb were trained based on cosine, so we have norm to length=1, this normalization will get similar GO to have truly similar vectors.
+    if self.args.normalize_go_vec:
+      go_emb = F.normalize( kwargs['go_emb'] , dim=1 ) ##!!
+    else:
+      go_emb = kwargs['go_emb'] ##!!
 
-    # prot_emb is usually fast, because we don't update it ? must update if we use deepgo approach
-    prot_emb = self.ProtEncoder ( prot_idx, **kwargs ) ## output is batch x dim if we use deepgo. possible we need to change later.
-    ## append @prot_emb to vector from prot-prot interaction network
-    prot_emb = torch.cat ( (prot_emb, prot_interact_emb) , dim=1 ) ## append to known ppi-network
+    aa_emb = self.ProtEncoder ( prot_idx, **kwargs ) ## output is batch x dim if we use deepgo. possible we need to change later.
+    aa_emb = torch.cat ( (aa_emb, prot_interact_emb) , dim=1 ) ##!!##!!##!! append @aa_emb to vector from prot-prot interaction network
 
-    prot_emb = prot_emb.unsqueeze(1) ## make into 3D : batch x 1 x dim
-    prot_emb = prot_emb.expand( -1, self.args.num_label_to_test, -1) ## output shape batch x num_go x dim
+    aa_emb = self.LinearProtVec(aa_emb)  ##!!##!!##!! reduce to same dim as go vec
+    aa_emb = aa_emb.unsqueeze(1) ## make into 3D : batch x 1 x dim
+    aa_emb = aa_emb.expand( -1, self.args.num_label_to_test, -1) ## output shape batch x num_go x dim
 
-    ## only need unsqueeze if we change the 2nd or 3rd dim
-    go_emb_select = go_emb[kwargs['label_to_test_index']] ## testing on subset
-    go_emb_select = go_emb_select.expand(prot_idx.shape[0], -1, -1 ) ## the -1 implies default dim. num_prot x num_go x dim (so we duplicated same matrix based on #prot
-
-    pred = self.CompareMetric(prot_emb,go_emb_select) ## output num_prot x num_go
+    go_emb = go_emb.expand(prot_idx.shape[0], -1, -1 ) ## the -1 implies default dim. num_prot x num_go x dim (so we duplicated same matrix based on #prot
+    pred = self.CompareMetric(aa_emb,go_emb) ## output num_prot x num_go
     loss = self.classify_loss ( pred, label_ids.cuda() )
 
     return pred, loss
 
 
-class DeepGOTreeSeqProtHwayGo (DeepGOFlatSeqProtHwayGo):
-
+class DeepGOFlatSeqConcatGo (DeepGOFlatSeqProtConcatGo):
+  ##!!##!! can probably used @DeepGOFlatSeqProtConcatGo with some slight if-else ... but whatever
   def __init__(self,ProtEncoder, GOEncoder, args, **kwargs):
     super().__init__(ProtEncoder, GOEncoder, args, **kwargs)
 
-    self.classify_loss = nn.BCELoss() ## return sigmoid to avoid max with 0, so we take traditional BCE without built in logit
-    self.loss_type = 'BCE'
+    if self.args.fix_go_emb:
+      for p in self.GOEncoder.parameters():
+        p.requires_grad=False
 
-    self.maxpoolNodeLayer = maxpoolNodeLayer (kwargs['AdjacencyMatrix'][kwargs['label_to_test_index']]) # use @label_to_test_index because we need to extract children of nodes we're testing on
+    self.LinearProtVec = nn.Sequential(nn.Linear(args.prot_vec_dim, args.go_vec_dim ),
+                                       nn.ReLU() ,
+                                       nn.Linear(args.go_vec_dim, args.go_vec_dim ) )
 
-  def forward( self, prot_idx, mask, prot_interact_emb, label_ids, **kwargs ):
-    ## @go_emb should be joint train?
-    # go_emb will be computed each time. so it's costly ?
+    xavier_uniform_(self.LinearProtVec[0].weight)
+    xavier_uniform_(self.LinearProtVec[2].weight)
 
-    ## **** TO SAVE SOME TIME, IF WE DON'T UPDATE LABEL DESCRIPTION, WE CAN COMPUTE IT AHEAD OF TIME.
-    # if self.args.fix_go_emb:
-    go_emb = kwargs['go_emb']
-    # else:
-    #   ## Because of GCN, GO vectors not in subset will influence GO vectors inside subset, so we have to run GCN on the whole graph ? ... probably yes
-    #   go_emb = self.GOEncoder.gcn_2layer(kwargs['labeldesc_loader'],kwargs['edge_index']) ## go_emb is num_go x dim
-    #   go_emb = F.normalize(go_emb,dim=1) ## go emb were trained based on cosine, so we have norm to length=1, this normalization will get similar GO to have truly similar vectors.
+  def forward (self, prot_idx, mask, prot_interact_emb, label_ids, **kwargs):
 
-    # prot_emb is usually fast, because we don't update it ? must update if we use deepgo approach
-    prot_emb = self.ProtEncoder ( prot_idx, **kwargs ) ## output is batch x dim if we use deepgo. possible we need to change later.
+    if self.args.normalize_go_vec:
+      go_emb = F.normalize( kwargs['go_emb'] , dim=1 ) ##!!
+    else:
+      go_emb = kwargs['go_emb'] ##!!
 
-    ## append @prot_emb to vector from prot-prot interaction network
-    prot_emb = torch.cat ( (prot_emb, prot_interact_emb) , dim=1 ) ## append to known ppi-network
+    aa_emb = self.ProtEncoder ( prot_idx, **kwargs ) ## output is batch x dim if we use deepgo. possible we need to change later.
+    aa_emb = self.LinearProtVec(aa_emb) ##!!##!!##!! reduce to same dim as go vec
+    aa_emb = aa_emb.unsqueeze(1) ## make into 3D : batch x 1 x dim
+    aa_emb = aa_emb.expand( -1, self.args.num_label_to_test, -1) ## output shape batch x num_go x dim
 
-    ## somehow ... account for the GO vectors
-    ## testing on subset, so we call kwargs['label_to_test_index']
-    prot_go_vec = self.concat_prot_go ( prot_emb, go_emb[kwargs['label_in_ontology_index']] ) ## output shape batch x num_go x dim
-
-    ## testing on subset
-    pred = self.LinearRegression.weight.mul(prot_go_vec).sum(2) + self.LinearRegression.bias ## dot-product sum up
-
-    pred = F.sigmoid(pred) ## size batch x all_terms_in_ontology because for 1 node, we need to get all its children. we can do careful selection later to save gpu memmory
-
-    pred = self.maxpoolNodeLayer.forward ( pred ) ## max over all GO terms
-
-    loss = self.classify_loss ( pred, label_ids.cuda() ) ## get accuracy only for labels we care for.
+    go_emb = go_emb.expand(prot_idx.shape[0], -1, -1 ) ## the -1 implies default dim. num_prot x num_go x dim (so we duplicated same matrix based on #prot
+    pred = self.CompareMetric(aa_emb,go_emb) ## output num_prot x num_go
+    loss = self.classify_loss ( pred, label_ids.cuda() )
 
     return pred, loss
 
@@ -733,37 +715,44 @@ class DeepGOFlatSeqProtHwayGoNotUsePPI (DeepGOFlatSeqProtHwayGo):
 
     super().__init__(ProtEncoder, GOEncoder, args, **kwargs)
 
-    dim_in = args.prot_vec_dim + args.go_vec_dim #### do not have protein vec from network (no @prot_interact_vec_dim)
-    dim_out = args.prot_vec_dim
-    self.ReduceProtGoEmb = nn.Sequential(nn.Linear(dim_in, dim_out), nn.ReLU())
+    dim_in = args.prot_vec_dim + args.go_vec_dim ##!! do not have protein vec from network (no @prot_interact_vec_dim)
+    dim_out = dim_in//2
+    self.ReduceProtGoEmb = nn.Sequential(nn.Linear(dim_in, dim_out),
+                                         nn.ReLU() )
+
     xavier_uniform_(self.ReduceProtGoEmb[0].weight)
 
-    self.LinearRegression = nn.Linear( dim_out*2 , args.num_label_to_test ) ## final layer
+    self.LinearRegression = nn.Linear( dim_in+dim_out ,
+                                       args.num_label_to_test ) ## final layer
     xavier_uniform_(self.LinearRegression.weight)
 
-  def concat_prot_go (self, prot_emb, go_emb):
+  def interaction_aa_prot_go_emb (self, aa_emb, go_emb):
 
-    prot_emb = prot_emb.unsqueeze(1) ## make into 3D : batch x 1 x dim
-    prot_emb = prot_emb.expand(-1, self.args.num_label_to_test, -1 ) ## batch x num_go x dim ... -1 implies default
+    aa_emb = aa_emb.unsqueeze(1) ## make into 3D : batch x 1 x dim
+    aa_emb = aa_emb.expand(-1, self.args.num_label_to_test, -1 ) ## batch x num_go x dim ... -1 implies default
     ## only need unsqueeze if we change the 2nd or 3rd dim
-    go_emb = go_emb.expand(prot_emb.shape[0], -1, -1 ) ## the -1 implies default dim. num_prot x num_go x dim (so we duplicated same matrix based on #prot
-    prot_go_vec = torch.cat((prot_emb,go_emb), dim=2) # append prot_emb with go_emb. prot_go_vec[0] is 1st protein in the batch concat with many go terms (its num. of row)
-    prot_go_vec = self.ReduceProtGoEmb (prot_go_vec) ## somehow make interaction between prot and go
-    prot_go_vec = torch.cat ( (prot_emb , prot_go_vec) , dim=2 ) ## append to f(prot_emb,go_emb)
+    go_emb = go_emb.expand(aa_emb.shape[0], -1, -1 ) ## the -1 implies default dim. num_prot x num_go x dim (so we duplicated same matrix based on #prot
+    aa_emb_prot_emb_go_emb = torch.cat((aa_emb,go_emb), dim=2) # append aa_emb with go_emb. aa_emb_prot_emb_go_emb[0] is 1st protein in the batch concat with many go terms (its num. of row)
+    aa_emb_prot_emb_go_emb = self.ReduceProtGoEmb (aa_emb_prot_emb_go_emb) ## somehow make interaction between prot and go
+    aa_emb_prot_emb_go_emb = torch.cat ( (aa_emb , go_emb, aa_emb_prot_emb_go_emb) , dim=2 ) ## append to f(aa_emb,go_emb)
 
-    return prot_go_vec ## output shape batch x num_go x dim
+    return aa_emb_prot_emb_go_emb ## output shape batch x num_go x dim
 
   def forward( self, prot_idx, mask, prot_interact_emb, label_ids, **kwargs ):
 
     ## test what happens if we just use sequence and go vector, not use PPI
-    go_emb = kwargs['go_emb']
-    prot_emb = self.ProtEncoder ( prot_idx, **kwargs ) ## output is batch x dim if we use deepgo. possible we need to change later.
-    ## do not append @prot_emb to vector from prot-prot interaction network
+    if self.args.normalize_go_vec:
+      go_emb = F.normalize( kwargs['go_emb'] , dim=1 ) ##!!
+    else:
+      go_emb = kwargs['go_emb'] ##!!
+
+    aa_emb = self.ProtEncoder ( prot_idx, **kwargs ) ## output is batch x dim if we use deepgo. possible we need to change later.
+    ## do not append @aa_emb to vector from prot-prot interaction network
     ## somehow ... account for the GO vectors
     ## testing on subset, so we call kwargs['label_to_test_index']
     ## if we don't care about using graph/ or children terms, then @label_to_test_index should be just simple index 0,1,2,3,....
-    prot_go_vec = self.concat_prot_go ( prot_emb, go_emb[kwargs['label_to_test_index']] ) ## output shape batch x num_go x dim
-    pred = self.LinearRegression.weight.mul(prot_go_vec).sum(2) + self.LinearRegression.bias ## dot-product sum up
+    aa_emb_prot_emb_go_emb = self.interaction_aa_prot_go_emb ( aa_emb, go_emb ) ## output shape batch x num_go x dim
+    pred = self.LinearRegression.weight.mul(aa_emb_prot_emb_go_emb).sum(2) + self.LinearRegression.bias ## dot-product sum up
     loss = self.classify_loss ( pred, label_ids.cuda() )
     return pred, loss
 

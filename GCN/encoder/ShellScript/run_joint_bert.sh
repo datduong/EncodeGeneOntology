@@ -26,7 +26,7 @@ bert_model=$work_dir/'BERT_base_cased_tune_go_branch/fine_tune_lm_bioBERT' # use
 conda activate tensorflow_gpuenv
 cd $server/GOmultitask
 
-CUDA_VISIBLE_DEVICES=1 python3 $server/GOmultitask/GCN/encoder/do_model_add_encoder.py --bert_model $bert_model --main_dir $work_dir --qnli_dir $data_dir --batch_size_label_desc 8 --batch_size_label 8 --result_folder $result_folder --epoch 100 --use_cuda --metric_option $metric_option --nonlinear_gcnn $nonlinear_gcnn --def_emb_dim $def_emb_dim --gcnn_dim $gcnn_dim --model_load $model_load > $result_folder/train.log
+CUDA_VISIBLE_DEVICES=1 python3 $server/GOmultitask/GCN/encoder/do_model_add_encoder.py --bert_model $bert_model --main_dir $work_dir --qnli_dir $data_dir --batch_size_label_desc 8 --batch_size_aa_go 8 --result_folder $result_folder --epoch 100 --use_cuda --metric_option $metric_option --nonlinear_gcnn $nonlinear_gcnn --def_emb_dim $def_emb_dim --gcnn_dim $gcnn_dim --model_load $model_load > $result_folder/train.log
 
 
 # --layer_index 1 --average_layer
@@ -57,6 +57,6 @@ bert_model=$work_dir/'BERT_base_cased_tune_go_branch/fine_tune_lm_bioBERT' # use
 conda activate tensorflow_gpuenv
 cd $server/GOmultitask
 
-CUDA_VISIBLE_DEVICES=3 python3 $server/GOmultitask/GCN/encoder/do_model_add_encoder.py --bert_model $bert_model --main_dir $work_dir --qnli_dir $data_dir --batch_size_label_desc 8 --batch_size_label 8 --result_folder $result_folder --epoch 100 --use_cuda --metric_option $metric_option --nonlinear_gcnn $nonlinear_gcnn --def_emb_dim $def_emb_dim --gcnn_dim $gcnn_dim --layer_index 1 --average_layer --model_load $model_load > $result_folder/train.log
+CUDA_VISIBLE_DEVICES=3 python3 $server/GOmultitask/GCN/encoder/do_model_add_encoder.py --bert_model $bert_model --main_dir $work_dir --qnli_dir $data_dir --batch_size_label_desc 8 --batch_size_aa_go 8 --result_folder $result_folder --epoch 100 --use_cuda --metric_option $metric_option --nonlinear_gcnn $nonlinear_gcnn --def_emb_dim $def_emb_dim --gcnn_dim $gcnn_dim --layer_index 1 --average_layer --model_load $model_load > $result_folder/train.log
 
 

@@ -44,9 +44,9 @@ MAX_SEQ_LEN = 512
 
 ## MUST READ IN WHAT ARE THE GO TERMS TO BE USED. 
 os.chdir(args.main_dir)
-all_name_array = pd.read_csv("go_name_in_obo.csv", header=None)
-all_name_array = list (all_name_array[0])
-print ('loading in go terms found in go.obo, terms count {}'.format(len(all_name_array)))
+full_label_name_array = pd.read_csv("go_name_in_obo.csv", header=None)
+full_label_name_array = list (full_label_name_array[0])
+print ('loading in go terms found in go.obo, terms count {}'.format(len(full_label_name_array)))
 
 
 # use BERT tokenizer
@@ -60,8 +60,8 @@ if args.fp16:
 name_add_on = name_add_on + "_" + args.metric_option
 
 # get label-label entailment data
-processor = data_loader.QnliProcessor()
-label_list = processor.get_labels()
+InputReader = data_loader.QnliProcessor()
+label_list = InputReader.get_labels()
 num_labels = len(label_list)
 # try:
 #   train_label_dataloader = torch.load( os.path.join(args.qnli_dir,"train_label_dataloader"+name_add_on+".pytorch") )
@@ -69,19 +69,19 @@ num_labels = len(label_list)
 
 if args.test_file is None: ## so we do training because test file not given
 
-  train_label_examples = processor.get_train_examples(args.qnli_dir,"train"+"_"+args.metric_option+".tsv")
-  train_label_features = data_loader.convert_examples_to_features(train_label_examples, label_list, MAX_SEQ_LEN, tokenizer, "classification",all_name_array)
-  train_label_dataloader = data_loader.make_data_loader (train_label_features,batch_size=args.batch_size_label,fp16=args.fp16, sampler='random',metric_option=args.metric_option)
+  train_label_examples = InputReader.get_train_examples(args.qnli_dir,"train"+"_"+args.metric_option+".tsv")
+  train_label_features = data_loader.StringInput2FeatureInput(train_label_examples, label_list, MAX_SEQ_LEN, tokenizer, "classification",full_label_name_array)
+  train_label_dataloader = data_loader.MakeDataLoader4Model (train_label_features,batch_size=args.batch_size_aa_go,fp16=args.fp16, sampler='random',metric_option=args.metric_option)
   print ('\ntrain_label_examples {}'.format(len(train_label_examples))) # train_label_examples 35776
 
 
   """ get dev or test set  """
 
   # get label-label entailment data
-  processor = data_loader.QnliProcessor()
-  dev_label_examples = processor.get_dev_examples(args.qnli_dir,"dev"+"_"+args.metric_option+".tsv")
-  dev_label_features = data_loader.convert_examples_to_features(dev_label_examples, label_list, MAX_SEQ_LEN, tokenizer, "classification",all_name_array)
-  dev_label_dataloader = data_loader.make_data_loader (dev_label_features,batch_size=args.batch_size_label-2,fp16=args.fp16, sampler='sequential',metric_option=args.metric_option)
+  InputReader = data_loader.QnliProcessor()
+  dev_label_examples = InputReader.get_dev_examples(args.qnli_dir,"dev"+"_"+args.metric_option+".tsv")
+  dev_label_features = data_loader.StringInput2FeatureInput(dev_label_examples, label_list, MAX_SEQ_LEN, tokenizer, "classification",full_label_name_array)
+  dev_label_dataloader = data_loader.MakeDataLoader4Model (dev_label_features,batch_size=args.batch_size_aa_go-2,fp16=args.fp16, sampler='sequential',metric_option=args.metric_option)
   # torch.save( dev_label_dataloader, os.path.join( args.qnli_dir, "dev_label_dataloader"+name_add_on+".pytorch") )
   print ('\ndev_label_examples {}'.format(len(dev_label_examples))) # dev_label_examples 7661
 
@@ -144,7 +144,7 @@ else:
 
 logging.info("device: {} n_gpu: {}, distributed training: {}, 16-bits training: {}".format(device, n_gpu, bool(args.local_rank != -1), args.fp16))
 
-args.batch_size_bert = args.batch_size_bert // args.gradient_accumulation_steps
+args.batch_size_pretrain_bert = args.batch_size_pretrain_bert // args.gradient_accumulation_steps
 
 random.seed(args.seed)
 np.random.seed(args.seed)
@@ -159,7 +159,7 @@ for i in range(int(args.num_train_epochs_bert)):
   # The modulo takes into account the fact that we may loop over limited epochs of data
   total_train_examples += samples_per_epoch[i % len(samples_per_epoch)]
 
-num_train_optim_steps_bert = int(total_train_examples / args.batch_size_bert / args.gradient_accumulation_steps)
+num_train_optim_steps_bert = int(total_train_examples / args.batch_size_pretrain_bert / args.gradient_accumulation_steps)
 if args.local_rank != -1:
   num_train_optim_steps_bert = num_train_optim_steps_bert // torch.distributed.get_world_size()
 
@@ -170,7 +170,7 @@ num_line = os.popen( 'wc -l ' + os.path.join(args.qnli_dir,"train"+"_"+args.metr
 num_observation_in_train = int(num_line)
 print ("\n\nnum_observation_in_train{}".format(num_observation_in_train))
 
-num_train_optim_steps_entailment = int( np.ceil ( np.ceil ( num_observation_in_train / args.batch_size_label ) / args.gradient_accumulation_steps) ) * args.num_train_epochs_entailment + args.batch_size_label
+num_train_optim_steps_entailment = int( np.ceil ( np.ceil ( num_observation_in_train / args.batch_size_aa_go ) / args.gradient_accumulation_steps) ) * args.num_train_epochs_entailment + args.batch_size_aa_go
 
 ## init joint model
 bert_lm_ent_model = encoder_model.encoder_model (bert_lm_sentence, metric_pass_to_joint_model[args.metric_option] , args, tokenizer, **other )
@@ -212,7 +212,7 @@ for repeat in range( args.epoch ):
   if repeat == (args.epoch-1): ## run twice longer 
     bert_lm_ent_model.args.num_train_epochs_entailment = args.num_train_epochs_entailment*2
     ## need to redefine the below
-    num_train_optim_steps_entailment = int( np.ceil ( np.ceil ( num_observation_in_train / args.batch_size_label ) / args.gradient_accumulation_steps) ) * (args.num_train_epochs_entailment*2) + args.batch_size_label
+    num_train_optim_steps_entailment = int( np.ceil ( np.ceil ( num_observation_in_train / args.batch_size_aa_go ) / args.gradient_accumulation_steps) ) * (args.num_train_epochs_entailment*2) + args.batch_size_aa_go
 
   tr_loss = bert_lm_ent_model.train_label(train_label_dataloader,
                                           num_train_optim_steps_entailment,
@@ -228,10 +228,10 @@ for repeat in range( args.epoch ):
 
 if args.write_vector: 
   print ('\n\nwrite GO vectors into text, using format of python gensim library')
-  AllLabelDesc = data_loader.LabelProcessorForWrite ()
+  AllLabelDesc = data_loader.LabelReaderToProduceVecOutput ()
   examples = AllLabelDesc.get_examples( args.label_desc_dir ) ## file @label_desc_dir is tab delim 
-  examples = data_loader.convert_label_desc_to_features ( examples , MAX_SEQ_LEN, tokenizer )
-  AllLabelLoader, GO_names = data_loader.label_loader_for_write(examples,64) ## should be able to handle 64 labels at once 
+  examples = data_loader.LabelDescription2FeatureInput ( examples , MAX_SEQ_LEN, tokenizer )
+  AllLabelLoader, GO_names = data_loader.LabelLoaderToProduceVecOutput(examples,64) ## should be able to handle 64 labels at once 
   label_emb = bert_lm_ent_model.write_label_vector( AllLabelLoader,os.path.join(args.result_folder,"label_vector.txt"), GO_names )
 
 
@@ -245,16 +245,16 @@ train_label_dataloader = None ## clear some space
 train_label_examples = None 
 
 print ('\n\nload test set')
-processor = data_loader.QnliProcessor()
+InputReader = data_loader.QnliProcessor()
 
 if args.test_file is None:
   args.test_file = args.qnli_dir,"test"+"_"+args.metric_option+".tsv"
 
 print ('\n\ntest file name{}'.format(args.test_file))
 
-dev_label_examples = processor.get_test_examples(args.test_file)
-dev_label_features = data_loader.convert_examples_to_features(dev_label_examples, label_list, MAX_SEQ_LEN, tokenizer, "classification",all_name_array)
-dev_label_dataloader = data_loader.make_data_loader (dev_label_features,batch_size=args.batch_size_label,fp16=args.fp16, sampler='sequential',metric_option=args.metric_option)
+dev_label_examples = InputReader.get_test_examples(args.test_file)
+dev_label_features = data_loader.StringInput2FeatureInput(dev_label_examples, label_list, MAX_SEQ_LEN, tokenizer, "classification",full_label_name_array)
+dev_label_dataloader = data_loader.MakeDataLoader4Model (dev_label_features,batch_size=args.batch_size_aa_go,fp16=args.fp16, sampler='sequential',metric_option=args.metric_option)
 torch.save( dev_label_dataloader, os.path.join( args.qnli_dir, "test_label_dataloader"+name_add_on+".pytorch") )
 print ('\ntest_label_examples {}'.format(len(dev_label_examples))) # dev_label_examples 7661
 

@@ -20,6 +20,9 @@ quantileMap[['quant25']] = '<25% quantile'
 quantileMap[['quant75']] = '>75% quantile'
 quantileMap[['betweenQ25Q75']] = '25-75% quantile'
 
+cbbPalette = c("#009E73", "#E69F00", "#56B4E9","#000000", "dodgerblue4", "darkorange", "#D55E00","chartreuse", "#CC79A7","darkorchid4","firebrick2")
+
+
 for (quantile_range in c( "quant25"   ,    "betweenQ25Q75"    ,   "quant75" ) ) {
 
 for (ontotype in c("bp","mf","cc")) {
@@ -29,10 +32,10 @@ for (ontotype in c("bp","mf","cc")) {
   data_long = gather(fin2, f1threshold, f1value, X0.1:X0.9, factor_key=TRUE)
 
   PlotList[[ paste0(ontotype,quantile_range) ]] = ggplot(data=data_long, aes(x=f1threshold, y=f1value, group=factor(name) )) +
-  geom_smooth(aes(color=factor(name),linetype=factor(name)),size=1.5, se=F) +
+  geom_smooth(aes(color=factor(name),linetype=factor(name)),size=1.1, se=F, alpha=.9) +
   scale_x_discrete( name="Rounding cutoff", labels=seq(0.1,.9,.1) ) +
-  scale_y_continuous( name=paste0(metricMap[[metric_type]]) ) + # ylim(0, .5) +
-  scale_color_brewer(name = "", labels = c("BERT-AS", "BERT-AveToken+CLS+SEP","BERT-AveToken", "BERT-CLS","BiLSTM","GCN","None","Onto2vec"), palette="Set2" ) +
+  scale_y_continuous( name=paste0(metricMap[[metric_type]])) + # + ylim(0, .65) + # , limits=c(0,.65) 
+  scale_colour_manual(name = "", labels = c("BERT-AS", "BERT-AveToken+CLS+SEP","BERT-AveToken", "BERT-CLS","BiLSTM","GCN","GCN+BERT-CLS","GCN+BiLSTM","GCN+Onto2vec","Onto2vec", "None"), values=cbbPalette ) + # palette = 'Set1',direction=-1, type = 'div'
   theme(legend.position="left",plot.title = element_text(hjust = 0.5)) +
   ggtitle(paste (toupper(ontotype),quantileMap[[quantile_range]]) ) + theme_linedraw() + theme_light() + 
   guides(colour = guide_legend(override.aes = list(size=4))) + 

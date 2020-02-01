@@ -153,7 +153,7 @@ def prot2kmer(aa_seq): ## 20^3 is 8000 kmer, add 1 for padding
   return kmer, len(kmer)
 
 
-def prot2feature(examples, all_name_array, max_seq_length, do_kmer, subset_name_array, has_ppi_emb):
+def prot2feature(examples, full_label_name_array, max_seq_length, do_kmer, subset_name_array, has_ppi_emb):
 
   alphabet = Uniprot21() ## convert string to indexing.
   # >>> alphabet.encode(b'ARNDCQEGHILKMFPSTWYVXOUBZ')
@@ -166,9 +166,9 @@ def prot2feature(examples, all_name_array, max_seq_length, do_kmer, subset_name_
 
   if subset_name_array is not None:
     print ('\nmodel runs only on subset of labels, so make 1-hot in subset of GO database, not all GO terms\n')
-    all_name_array = subset_name_array
+    full_label_name_array = subset_name_array
 
-  label_map = {label : i for i, label in enumerate(all_name_array)}
+  label_map = {label : i for i, label in enumerate(full_label_name_array)}
 
   features = []
 
@@ -255,20 +255,27 @@ def makeProtLoader (train_features,batch_size,sampler,has_ppi_emb) :
   return train_dataloader, all_name_ids
 
 
-def ProtLoader (data_dir, data_type_name, all_name_array, max_seq_length, sampler, args, do_kmer, subset_name_array):
+def ProtLoader (data_dir, data_type_name, full_label_name_array, max_seq_length, sampler, args, do_kmer, subset_name_array):
 
-  processor = ProtProcessor()
+  InputReader = ProtProcessor()
 
   if 'train' in data_type_name:
-    examples = processor.get_train_examples(data_dir,args.has_ppi_emb,data_type_name)
+    examples = InputReader.get_train_examples(data_dir,args.has_ppi_emb,data_type_name)
 
   else:
-    examples = processor.get_dev_examples(data_dir,args.has_ppi_emb,data_type_name)
+    examples = InputReader.get_dev_examples(data_dir,args.has_ppi_emb,data_type_name)
 
-  features = prot2feature(examples, all_name_array, max_seq_length, do_kmer, subset_name_array,args.has_ppi_emb)
-  dataloader, prot_name = makeProtLoader (features, batch_size=args.batch_size_label, sampler=sampler, has_ppi_emb=args.has_ppi_emb)
+  features = prot2feature(examples, full_label_name_array, max_seq_length, do_kmer, subset_name_array,args.has_ppi_emb)
+  dataloader, prot_name = makeProtLoader (features, batch_size=args.batch_size_aa_go, sampler=sampler, has_ppi_emb=args.has_ppi_emb)
   return dataloader
 
+
+def ProtLoaderAnyFile (file_name, full_label_name_array, max_seq_length, sampler, args, do_kmer, subset_name_array):
+  InputReader = ProtProcessor()
+  examples = InputReader.get_test_examples(file_name, args.has_ppi_emb) ##!! load any file
+  features = prot2feature(examples, full_label_name_array, max_seq_length, do_kmer, subset_name_array,args.has_ppi_emb)
+  dataloader, prot_name = makeProtLoader (features, batch_size=args.batch_size_aa_go, sampler=sampler, has_ppi_emb=args.has_ppi_emb)
+  return dataloader
 
 ### !!!!!
 ### !!!!!

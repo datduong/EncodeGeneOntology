@@ -17,11 +17,11 @@ os.chdir(main_dir)
 graph = obonet.read_obo('../go.obo') # https://github.com/dhimmel/obonet
 
 
-all_name_array = pd.read_csv("../go_name_in_obo.csv", header=None)
-all_name_array = list (all_name_array[0])
-# all_name_array = [ re.sub(r"GO:","",g) for g in all_name_array ] ## don't use GO: in the input files
+full_label_name_array = pd.read_csv("../go_name_in_obo.csv", header=None)
+full_label_name_array = list (full_label_name_array[0])
+# full_label_name_array = [ re.sub(r"GO:","",g) for g in full_label_name_array ] ## don't use GO: in the input files
 
-label_map = {label : i for i, label in enumerate(all_name_array)}
+label_map = {label : i for i, label in enumerate(full_label_name_array)}
 
 df = pd.read_csv("ecoli_yeast_human_seq_go.txt",sep="\t")
 print ('before filter len {}'.format(df.shape))

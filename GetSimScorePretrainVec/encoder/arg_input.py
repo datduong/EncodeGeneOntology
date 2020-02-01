@@ -65,11 +65,11 @@ def get_args():
                       default=None,
                       type=str,
                       help="Where pretrained bert are saved")
-  parser.add_argument("--batch_size_bert",
+  parser.add_argument("--batch_size_pretrain_bert",
                       default=32,
                       type=int,
                       help="entailment batch size")
-  parser.add_argument("--batch_size_label",
+  parser.add_argument("--batch_size_aa_go",
                       default=24,
                       type=int,
                       help="entailment batch size")

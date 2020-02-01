@@ -16,12 +16,7 @@ from tqdm import tqdm, trange
 
 from pytorch_pretrained_bert.tokenization import BertTokenizer, load_vocab, whitespace_tokenize
 
-
 logger = logging.getLogger(__name__)
-
-# must match the token correctly. If use BERT tokenizer for labels, then the doctor notes must also use BERT.
-# from nltk.tokenize import RegexpTokenizer
-# tokenizer = RegexpTokenizer(r'\w+') # retain only alphanumeric
 
 
 def bert_tokenizer_style(tokenizer,text_a, add_cls_sep=True):
@@ -196,23 +191,17 @@ class QnliProcessor(DataProcessor):
     return examples
 
 
-def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer, tokenize_style="space", all_name_array=None):
+def StringInput2FeatureInput(examples, label_list, max_seq_length, tokenizer, tokenize_style="space", full_label_name_array=None):
   """Loads a data file into a list of `InputBatch`s."""
 
   label_map = {label : i for i, label in enumerate(label_list)}
-
-  ## STRICT ENFORCE GO:XYZ SYNTAX
-
-  # if all_name_array is not None: 
-  #   all_name_array = [ re.sub("GO:","",g) for g in all_name_array ] ## the train.csv doesn't use the GO:xyz syntax
-
   features = []
 
   for (ex_index, example) in tqdm(enumerate(examples)):
 
     ## label
     try: ## some terms have changed, legacy input file
-      input_pos=[all_name_array.index(example.name_a), all_name_array.index(example.name_b)]
+      input_pos=[full_label_name_array.index(example.name_a), full_label_name_array.index(example.name_b)]
     except:
       continue
 
@@ -275,7 +264,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
   return features
 
 
-def make_data_loader (train_features,batch_size,fp16=False,sampler='random',metric_option='cosine') :
+def MakeDataLoader4Model (train_features,batch_size,fp16=False,sampler='random',metric_option='cosine') :
 
   all_input_1_ids = torch.tensor([f.input_1_ids for f in train_features], dtype=torch.long)
   all_input_2_ids = torch.tensor([f.input_2_ids for f in train_features], dtype=torch.long)
@@ -319,8 +308,7 @@ def make_data_loader (train_features,batch_size,fp16=False,sampler='random',metr
   return DataLoader(train_data, sampler=train_sampler, batch_size=batch_size)
 
 
-
-class LabelProcessorForWrite(DataProcessor):
+class LabelReaderToProduceVecOutput(DataProcessor):
   """Processor for the QNLI data set (GLUE version)."""
 
   def get_examples(self, label_desc_dir):
@@ -344,7 +332,7 @@ class LabelProcessorForWrite(DataProcessor):
     return examples
 
 
-def convert_label_desc_to_features(examples, max_seq_length, tokenizer, tokenize_style="space", all_name_array=None):
+def LabelDescription2FeatureInput(examples, max_seq_length, tokenizer, tokenize_style="space", full_label_name_array=None):
 
   features = []
 
@@ -352,7 +340,7 @@ def convert_label_desc_to_features(examples, max_seq_length, tokenizer, tokenize
 
     ## label
     try: ## some terms have changed, legacy input file
-      input_pos=[all_name_array.index(example.name_a)]
+      input_pos=[full_label_name_array.index(example.name_a)]
     except:
       continue
 
@@ -390,7 +378,7 @@ def convert_label_desc_to_features(examples, max_seq_length, tokenizer, tokenize
   return features
 
 
-def label_loader_for_write (train_features,batch_size,fp16=False): 
+def LabelLoaderToProduceVecOutput (train_features,batch_size,fp16=False): 
 
   all_input_1_name = [f.input_1_name for f in train_features] ## same order as @train_sampler
 

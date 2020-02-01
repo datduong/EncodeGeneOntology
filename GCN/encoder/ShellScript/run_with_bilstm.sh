@@ -24,7 +24,7 @@ w2v_emb='/local/datdb/deepgo/data/cosine.bilstm.300Vec/label_vector.pickle'
 conda activate tensorflow_gpuenv
 cd $server/GOmultitask
 
-CUDA_VISIBLE_DEVICES=7 python3 $server/GOmultitask/GCN/encoder/do_model.py --w2v_emb $w2v_emb --lr 0.0001 --main_dir $work_dir --qnli_dir $data_dir --batch_size_label_desc 24 --batch_size_label 24 --result_folder $result_folder --epoch 100 --use_cuda --metric_option $metric_option --nonlinear_gcnn $nonlinear_gcnn --def_emb_dim $def_emb_dim --fix_word_emb --word_mode $word_mode > $result_folder/train.log
+CUDA_VISIBLE_DEVICES=7 python3 $server/GOmultitask/GCN/encoder/do_model.py --w2v_emb $w2v_emb --lr 0.0001 --main_dir $work_dir --qnli_dir $data_dir --batch_size_label_desc 24 --batch_size_aa_go 24 --result_folder $result_folder --epoch 100 --use_cuda --metric_option $metric_option --nonlinear_gcnn $nonlinear_gcnn --def_emb_dim $def_emb_dim --fix_word_emb --word_mode $word_mode > $result_folder/train.log
 
 
 
@@ -53,5 +53,5 @@ w2v_emb='/local/datdb/deepgo/data/cosine.768.reduce300ClsVec/label_vector.pickle
 conda activate tensorflow_gpuenv
 cd $server/GOmultitask
 
-CUDA_VISIBLE_DEVICES=6 python3 $server/GOmultitask/GCN/encoder/do_model.py --w2v_emb $w2v_emb --lr 0.0001 --main_dir $work_dir --qnli_dir $data_dir --batch_size_label_desc 24 --batch_size_label 24 --result_folder $result_folder --epoch 100 --use_cuda --metric_option $metric_option --nonlinear_gcnn $nonlinear_gcnn --def_emb_dim $def_emb_dim --fix_word_emb --word_mode $word_mode > $result_folder/train.log
+CUDA_VISIBLE_DEVICES=6 python3 $server/GOmultitask/GCN/encoder/do_model.py --w2v_emb $w2v_emb --lr 0.0001 --main_dir $work_dir --qnli_dir $data_dir --batch_size_label_desc 24 --batch_size_aa_go 24 --result_folder $result_folder --epoch 100 --use_cuda --metric_option $metric_option --nonlinear_gcnn $nonlinear_gcnn --def_emb_dim $def_emb_dim --fix_word_emb --word_mode $word_mode > $result_folder/train.log
 

@@ -56,7 +56,7 @@ def bert_tokenizer_style(tokenizer,text_a, add_cls_sep=True):
   return input_1_ids , len(input_1_ids)
 
 
-def icd9_tokenizer_style (vocab,text_a):
+def SpaceSimpleTokenizer (vocab,text_a):
   # we follow same tokenization approach in original paper
   # @Vocab is some object that convert words to index exactly in the order of the pretrained word vectors.
   # use Vocab = load_vocab('/local/datdb/MIMIC3database/format10Jan2019/vocab+icd_index_map.txt')
@@ -196,15 +196,15 @@ class QnliProcessor(DataProcessor):
     return examples
 
 
-def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer, tokenize_style="space", all_name_array=None):
+def StringInput2FeatureInput(examples, label_list, max_seq_length, tokenizer, tokenize_style="space", full_label_name_array=None):
   """Loads a data file into a list of `InputBatch`s."""
 
   label_map = {label : i for i, label in enumerate(label_list)}
 
   ## STRICT ENFORCE GO:XYZ SYNTAX
 
-  # if all_name_array is not None: 
-  #   all_name_array = [ re.sub("GO:","",g) for g in all_name_array ] ## the train.csv doesn't use the GO:xyz syntax
+  # if full_label_name_array is not None: 
+  #   full_label_name_array = [ re.sub("GO:","",g) for g in full_label_name_array ] ## the train.csv doesn't use the GO:xyz syntax
 
   features = []
 
@@ -212,14 +212,14 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
 
     ## label
     try: ## some terms have changed, legacy input file
-      input_pos=[all_name_array.index(example.name_a), all_name_array.index(example.name_b)]
+      input_pos=[full_label_name_array.index(example.name_a), full_label_name_array.index(example.name_b)]
     except:
       continue
 
     if tokenize_style == 'bert': 
       input_1_ids, input_1_len = bert_tokenizer_style(tokenizer, example.text_a, add_cls_sep=True)
     else: 
-      input_1_ids, input_1_len = icd9_tokenizer_style(tokenizer, example.text_a)
+      input_1_ids, input_1_len = SpaceSimpleTokenizer(tokenizer, example.text_a)
 
 
     # The mask has 1 for real tokens and 0 for padding tokens. Only real
@@ -246,7 +246,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     if tokenize_style == 'bert': 
       input_2_ids, input_2_len = bert_tokenizer_style(tokenizer, example.text_b, add_cls_sep=True)
     else: 
-      input_2_ids, input_2_len = icd9_tokenizer_style(tokenizer, example.text_b)
+      input_2_ids, input_2_len = SpaceSimpleTokenizer(tokenizer, example.text_b)
 
 
     input_2_mask = [1] * len(input_2_ids)
@@ -275,7 +275,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
   return features
 
 
-def make_data_loader (train_features,batch_size,fp16=False,sampler='random',metric_option='cosine') :
+def MakeDataLoader4Model (train_features,batch_size,fp16=False,sampler='random',metric_option='cosine') :
 
   all_input_1_ids = torch.tensor([f.input_1_ids for f in train_features], dtype=torch.long)
   all_input_2_ids = torch.tensor([f.input_2_ids for f in train_features], dtype=torch.long)
@@ -325,7 +325,7 @@ def make_data_loader (train_features,batch_size,fp16=False,sampler='random',metr
 
 
 
-class LabelProcessorForWrite(DataProcessor):
+class LabelReaderToProduceVecOutput(DataProcessor):
   """Processor for the QNLI data set (GLUE version)."""
 
   def get_examples(self, label_desc_dir):
@@ -347,7 +347,7 @@ class LabelProcessorForWrite(DataProcessor):
     return examples
 
 
-def convert_label_desc_to_features(examples, max_seq_length, tokenizer):
+def LabelDescription2FeatureInput(examples, max_seq_length, tokenizer):
   """Loads a data file into a list of `InputBatch`s."""
 
   features = []
@@ -383,7 +383,7 @@ def convert_label_desc_to_features(examples, max_seq_length, tokenizer):
   return features
 
 
-def label_loader_for_write (train_features,batch_size,fp16=False): 
+def LabelLoaderToProduceVecOutput (train_features,batch_size,fp16=False): 
   name_1 = [f.input_1_name for f in train_features]
   all_input_1_name = torch.tensor([int(f[3:]) for f in name_1], dtype=torch.int) ## same order as @train_sampler
 

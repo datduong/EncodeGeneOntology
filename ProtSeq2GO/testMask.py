@@ -10,3 +10,4 @@ m = m.unsqueeze(1).transpose(1,2)
 # z = z.transpose(1,2) 
 
 m * z
+z[:,2:4,:]

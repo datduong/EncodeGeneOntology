@@ -58,10 +58,10 @@ if args.use_cuda:
 
 print ('num of edges {}'.format(edge_index.shape))
 
-all_name_array = pd.read_csv("go_name_in_obo.csv", header=None)
-all_name_array = list (all_name_array[0])
+full_label_name_array = pd.read_csv("go_name_in_obo.csv", header=None)
+full_label_name_array = list (full_label_name_array[0])
 
-args.num_label = len(all_name_array)
+args.num_label = len(full_label_name_array)
 
 ## **** load label description data ****
 
@@ -70,25 +70,25 @@ label_desc_dataloader = None
 
 ## read go terms entailment pairs to train
 
-processor = data_loader.QnliProcessor()
-label_list = processor.get_labels() ## no/yes entailment style
+InputReader = data_loader.QnliProcessor()
+label_list = InputReader.get_labels() ## no/yes entailment style
 num_labels = len(label_list) ## no/yes entailment style, not the total # node label
 
 if args.test_file is None:
 
   ## get label-label entailment data
-  train_label_examples = processor.get_train_examples(args.qnli_dir,"train"+"_"+args.metric_option+".tsv")
-  train_label_features = data_loader.convert_examples_to_features(train_label_examples, label_list, 512, tokenizer,all_name_array)
-  train_label_dataloader = data_loader.make_data_loader (train_label_features,batch_size=args.batch_size_label,fp16=args.fp16, sampler='random',metric_option=args.metric_option)
+  train_label_examples = InputReader.get_train_examples(args.qnli_dir,"train"+"_"+args.metric_option+".tsv")
+  train_label_features = data_loader.StringInput2FeatureInput(train_label_examples, label_list, 512, tokenizer,full_label_name_array)
+  train_label_dataloader = data_loader.MakeDataLoader4Model (train_label_features,batch_size=args.batch_size_aa_go,fp16=args.fp16, sampler='random',metric_option=args.metric_option)
   # torch.save( train_label_dataloader, os.path.join(args.qnli_dir,"train_label_dataloader"+name_add_on+".pytorch") )
   print ('\ntrain_label_examples {}'.format(len(train_label_examples))) # train_label_examples 35776
 
   """ get dev or test set  """
   # get label-label entailment data
-  processor = data_loader.QnliProcessor()
-  dev_label_examples = processor.get_dev_examples(args.qnli_dir,"dev"+"_"+args.metric_option+".tsv")
-  dev_label_features = data_loader.convert_examples_to_features(dev_label_examples, label_list, 512, tokenizer,all_name_array)
-  dev_label_dataloader = data_loader.make_data_loader (dev_label_features,batch_size=args.batch_size_label,fp16=args.fp16, sampler='sequential',metric_option=args.metric_option)
+  InputReader = data_loader.QnliProcessor()
+  dev_label_examples = InputReader.get_dev_examples(args.qnli_dir,"dev"+"_"+args.metric_option+".tsv")
+  dev_label_features = data_loader.StringInput2FeatureInput(dev_label_examples, label_list, 512, tokenizer,full_label_name_array)
+  dev_label_dataloader = data_loader.MakeDataLoader4Model (dev_label_features,batch_size=args.batch_size_aa_go,fp16=args.fp16, sampler='sequential',metric_option=args.metric_option)
   # torch.save( dev_label_dataloader, os.path.join( args.qnli_dir, "dev_label_dataloader"+name_add_on+".pytorch") )
   print ('\ndev_label_examples {}'.format(len(dev_label_examples))) # dev_label_examples 7661
 
@@ -109,8 +109,8 @@ if args.w2v_emb is not None:
   try: ## load standard pickle that is already in numpy
     pretrained_weight.shape[0] ## will throw error if load in file is not a matrix
   except: ## onto2vec is dictionary {go:vec}
-    temp = np.zeros((len(all_name_array), args.def_emb_dim ))
-    for index,go in enumerate (all_name_array):  ## must keep this exact order
+    temp = np.zeros((len(full_label_name_array), args.def_emb_dim ))
+    for index,go in enumerate (full_label_name_array):  ## must keep this exact order
       if go not in pretrained_weight:
         go = re.sub("GO:","",go)
       # enforce strict "GO:xyz" but onto2vec doesn't have this
@@ -175,7 +175,7 @@ if args.epoch > 0 : ## here we do training
 
   ## compute now many train iteration 
   num_observation_in_train = len(train_label_examples)
-  num_train_optimization_steps = int( np.ceil ( np.ceil ( num_observation_in_train / args.batch_size_label ) / args.gradient_accumulation_steps) ) * args.batch_size_label + args.batch_size_label
+  num_train_optimization_steps = int( np.ceil ( np.ceil ( num_observation_in_train / args.batch_size_aa_go ) / args.gradient_accumulation_steps) ) * args.batch_size_aa_go + args.batch_size_aa_go
 
   print ('num_observation_in_train {}'.format(num_observation_in_train))
   print ('num_train_optimization_steps {}'.format(num_train_optimization_steps))
@@ -193,18 +193,18 @@ if args.epoch > 0 : ## here we do training
 print ('\n\nload test data\n\n')
 
 # get label-label entailment data
-processor = data_loader.QnliProcessor()
+InputReader = data_loader.QnliProcessor()
 
 if args.test_file is None:
   args.test_file = args.qnli_dir,"test"+"_"+args.metric_option+".tsv"
-  dev_label_examples = processor.get_dev_examples(args.test_file)
+  dev_label_examples = InputReader.get_dev_examples(args.test_file)
 else:
-  dev_label_examples = processor.get_test_examples(args.test_file)
+  dev_label_examples = InputReader.get_test_examples(args.test_file)
 
 print ('\n\ntest file name{}'.format(args.test_file))
 
-dev_label_features = data_loader.convert_examples_to_features(dev_label_examples, label_list, all_name_array)
-dev_label_dataloader = data_loader.make_data_loader (dev_label_features,batch_size=args.batch_size_label,fp16=args.fp16, sampler='sequential',metric_option=args.metric_option)
+dev_label_features = data_loader.StringInput2FeatureInput(dev_label_examples, label_list, full_label_name_array)
+dev_label_dataloader = data_loader.MakeDataLoader4Model (dev_label_features,batch_size=args.batch_size_aa_go,fp16=args.fp16, sampler='sequential',metric_option=args.metric_option)
 
 
 print ('\ntest_label_examples {}'.format(len(dev_label_examples))) # dev_label_examples 7661

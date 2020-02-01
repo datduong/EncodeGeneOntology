@@ -508,7 +508,7 @@ class encoder_model (nn.Module) :
       ## call the pregenerated dataset
       epoch_dataset = PregeneratedDataset(epoch=epoch, training_path=self.args.pregenerated_data, tokenizer=self.tokenizer, num_data_epochs=num_data_epochs, reduce_memory=self.args.reduce_memory)
       train_sampler = RandomSampler(epoch_dataset)
-      train_dataloader = DataLoader(epoch_dataset, sampler=train_sampler, batch_size=self.args.batch_size_bert)
+      train_dataloader = DataLoader(epoch_dataset, sampler=train_sampler, batch_size=self.args.batch_size_pretrain_bert)
 
       ## now do training
       tr_loss = 0

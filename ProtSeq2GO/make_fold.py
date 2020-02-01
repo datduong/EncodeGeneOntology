@@ -29,9 +29,9 @@ def train_validate_test_split(df, train_percent=.71, validate_percent=.14, seed=
   return train, validate, test
 
 
-all_name_array = pd.read_csv("../go_name_in_obo.csv", header=None)
-all_name_array = list (all_name_array[0])
-# all_name_array = [ re.sub(r"GO:","",g) for g in all_name_array ] ## don't use GO: in the input files
+full_label_name_array = pd.read_csv("../go_name_in_obo.csv", header=None)
+full_label_name_array = list (full_label_name_array[0])
+# full_label_name_array = [ re.sub(r"GO:","",g) for g in full_label_name_array ] ## don't use GO: in the input files
 
 df = pd.read_csv("ecoli_yeast_human_seq_go_is_a_obo_L20_2000.txt",sep="\t")
 df = df.dropna()

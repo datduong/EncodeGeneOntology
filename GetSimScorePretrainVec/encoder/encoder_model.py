@@ -50,37 +50,16 @@ def acc_and_f1(preds, labels, metric_option):
       "acc_and_f1": (acc + f1) / 2,
   }
 
-
 class cosine_distance_loss (nn.Module):
+  ## simple cosine distance class without any params
   def __init__(self, word_vec_dim, out_dim, args):
-
     super(cosine_distance_loss, self).__init__()
-
     self.args = args
-    if self.args.reduce_cls_vec:
-      self.reduce_vec_dim = nn.Linear(word_vec_dim, out_dim)
-      xavier_uniform_(self.reduce_vec_dim.weight)
-
-    # margin=-1 means, that when y=-1, then we want max(0, x- -1) = max(0, x+1) to be small.
-    # for this function to be small, we have to get x --> -1.
-    # self.loss = nn.CosineEmbeddingLoss(margin = -1) ## https://pytorch.org/docs/stable/nn.html#torch.nn.CosineEmbeddingLoss
-
     self.loss = nn.MSELoss()
 
-
   def forward(self,emb1,emb2,true_label): ## not work with fp16, so we have to write own own cosine distance ??
-
-    if self.args.reduce_cls_vec:
-      emb1 = self.reduce_vec_dim(emb1)
-      emb2 = self.reduce_vec_dim(emb2)
-
     score = F.cosine_similarity(emb1,emb2,dim=1,eps=.0001) ## not work for fp16 ?? @score is 1 x batch_size
     loss = self.loss(score, true_label)
-
-    # loss = self.loss(emb1, emb2, true_label)
-    # with torch.no_grad():
-    #   score = F.cosine_similarity(emb1,emb2,dim=1,eps=.0001) ## not work for fp16 ?? # @score is 1 x batch_size
-
     return loss, score
 
 class encoder_model(nn.Module):
@@ -89,11 +68,10 @@ class encoder_model(nn.Module):
     super(encoder_model, self).__init__()
 
     self.metric_option = kwargs['metric_option'] ## should be 'entailment' or 'cosine'
-    self.metric_module = metric_model
+    self.metric_module = metric_model ## takes no param, do only forward pass
     self.args = args
 
     self.mode = 'text'
-
     if ".pickle" in self.args.vector_file:
       self.mode = 'pickle' ## onto2vec is saved as pickle, we can convert to text, but let's just use the pickle directly
 
@@ -105,13 +83,11 @@ class encoder_model(nn.Module):
         split = non_formatted_go[go_vecs][0].split()
         float_vec = [float(b) for b in split]
         self.go_dict[go_vecs] = float_vec
-
     else: ## Onto2vec came in dictionary format.
       self.go_dict = {}
       go_dict = pickle.load(open(self.args.vector_file,"rb"))
-      for key,val in go_dict.items(): 
-        ## put into format GO:xyz
-        if 'GO:' not in key: 
+      for key,val in go_dict.items():
+        if 'GO:' not in key: ## put into format GO:xyz
           key = "GO:"+key
         #
         self.go_dict [key] = val
@@ -119,12 +95,12 @@ class encoder_model(nn.Module):
   def forward(self, go_terms):
     ## some GO terms are too new or too old, must be removed ?? seems very stupid ???
     ## we will set them to 0. in the 1st attempt, it looks like this is ver rare
-    go_vectors = [ ] 
-    for a in go_terms : 
-      if a in self.go_dict : 
+    go_vectors = [ ]
+    for a in go_terms :
+      if a in self.go_dict :
         go_vectors.append ( self.go_dict[a] )
       else:
-        go_vectors.append ( [0]*self.args.def_emb_dim ) 
+        go_vectors.append ( [0]*self.args.def_emb_dim )
     return torch.FloatTensor (go_vectors) ## 2D array, must be converted to tensor for CUDA
 
   def convertToString(self,label_names):

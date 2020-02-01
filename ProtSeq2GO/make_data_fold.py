@@ -18,18 +18,18 @@ def train_validate_test_split(df, train_percent=.80, seed=1234):
   return train, validate
 
 
-main_dir = '/u/flashscratch/d/datduong/deepgo/dataCompleteGoSet/train/'
+main_dir = '/local/datdb/deepgo/dataExpandGoSet16Jan2020/train/'
 # main_dir = "/u/scratch/d/datduong/deepgo/data/train/"
 os.chdir(main_dir)
 
 
 ## COMMENT remember to redo the spliting so keep same obs. in train/dev
 
-for ontology in ['cc','mf','bp']:
+for ontology in ['mf','cc','bp']:
   ## original github gives only train/test set.
   ## in their keras code, they split the train into 2 set.
   ## we will do preprocessing split. take the provided train.tsv, split into some folds
-  df = pd.read_csv(main_dir+'train-'+ontology+'.tsv',dtype=str)
+  df = pd.read_csv(main_dir+'train-'+ontology+'-16Jan20.tsv',dtype=str)
   for fold in [1]:
     where_fold = os.path.join( main_dir , "fold_"+str(fold))
     if not os.path.exists(where_fold):

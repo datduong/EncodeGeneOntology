@@ -2,15 +2,22 @@
 from argparse import ArgumentParser
 from pathlib import Path
 
-# start_near_true_label = False ## global
-
-
 def get_args():
   parser = ArgumentParser(
       description='encode label descriptions into vectors')
 
   parser.add_argument('--weight_decay', type=float, default=0,
                       help='weight_decay')
+  parser.add_argument('--test_data_name', type=str, default=None,
+                      help='test_data_name')
+  parser.add_argument('--test_output_name', type=str, default=None,
+                      help='test_output_name')
+  parser.add_argument('--sgd_lr', type=float, default=0.05,
+                      help='LR for SGD method')
+  parser.add_argument('--extra_linear_layer', action='store_true',
+                      help='extra_linear_layer on deepgo network')
+  parser.add_argument('--layer_index', type=int, default=None, ##!! for bert.
+                      help='-1 is last -2 is 2nd last')
   parser.add_argument('--lr', type=float, default=0.0001,
                       help='learning rate')
   parser.add_argument('--average_layer', action='store_true',
@@ -34,9 +41,9 @@ def get_args():
   parser.add_argument('--word_mode', type=str, default=None,
                       help='do we use bilstm or avepool')
   parser.add_argument('--prot2seq_model_load', type=str, default=None,
-                      help='path to a model to load') 
+                      help='path to a model to load')
   parser.add_argument('--label_counter_dict', type=str, default=None,
-                      help='dictionary with counter for each label in train data') 
+                      help='dictionary with counter for each label in train data')
   parser.add_argument('--go_enc_model_load', type=str, default=None,
                       help='path to a model to load')
   parser.add_argument('--label_in_ontology', type=str, default=None,
@@ -44,7 +51,7 @@ def get_args():
   parser.add_argument('--adjacency_matrix', type=str, default=None,
                       help='path to a adjacency_matrix pickle')
   parser.add_argument('--tree', action='store_true',
-                      help='run tree style') 
+                      help='run tree style')
   parser.add_argument('--model_choice', type=str, default=None,
                       help='concat-highway or concat')
   parser.add_argument('--w2v_emb', type=str, default=None,
@@ -89,14 +96,14 @@ def get_args():
                       default=None,
                       type=str,
                       help="Where pretrained bert are saved")
-  parser.add_argument("--batch_size_bert",
+  parser.add_argument("--batch_size_pretrain_bert",
                       default=32,
                       type=int,
-                      help="entailment batch size")
-  parser.add_argument("--batch_size_label",
+                      help="batch size")
+  parser.add_argument("--batch_size_aa_go",
                       default=24,
                       type=int,
-                      help="entailment batch size")
+                      help="batch size")
   parser.add_argument("--main_dir",
                       default=None,
                       type=str,
@@ -167,7 +174,7 @@ def get_args():
                       help='write_vector of label emb')
   parser.add_argument('--prot_vec_dim', type=int, default=100, help='dim for prot vec' )
   parser.add_argument('--go_vec_dim', type=int, default=300, help='dim for prot vec' )
-  parser.add_argument('--mid_dim', type=int, default=300, help='dim for prot vec' ) 
+  parser.add_argument('--mid_dim', type=int, default=300, help='dim for prot vec' )
   parser.add_argument('--top_k', type=int, default=15, help='top k for p@k and r@k' )
   parser.add_argument('--fix_prot_emb', action='store_true',
                         help='fix_prot_emb')
@@ -178,10 +185,12 @@ def get_args():
   parser.add_argument('--kmer_filter_size', type=int, default=128 ,help='len of filter, 128 here and kmer_dim=128 will mean we have 128x128 box')
   parser.add_argument('--num_label_to_test', type=int, default=0, help='what if we test on subset')
   parser.add_argument('--label_subset_file', type=str, default=None, help='what if we test on subset')
-  parser.add_argument('--ontology', type=str, default=None, help='mf bp cc') 
-  parser.add_argument('--add_name', type=str, default=None, help='some extra name to file') 
-  parser.add_argument('--has_ppi_emb', action='store_true',help='has_ppi_emb to append to kmer-transformed vector, or some other transformation') 
+  parser.add_argument('--ontology', type=str, default=None, help='mf bp cc')
+  parser.add_argument('--add_name', type=str, default=None, help='some extra name to file')
+  parser.add_argument('--has_ppi_emb', action='store_true',help='has_ppi_emb to append to kmer-transformed vector, or some other transformation')
   parser.add_argument('--prot_interact_vec_dim', type=int, default=0, help='extra info prot_interact_vec_dim from ppi network')
+  parser.add_argument('--normalize_go_vec', action='store_true', help='normalize go vec to L2len=1')
 
   args = parser.parse_args()
   return args
+

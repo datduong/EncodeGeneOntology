@@ -31,7 +31,7 @@ from torch_geometric.nn import GCNConv
 
 sys.path.append("/local/datdb/GOmultitask")
 
-import GCN.encoder.data_loader as GCN_data_loader
+import GCN.encoder.data_loader as LabelDescDataLoaderClass
 import GCN.encoder.encoder_model as GCN_encoder_model
 
 os.chdir("/local/datdb/GOmultitask")
@@ -48,9 +48,9 @@ MAX_SEQ_LEN = 2001
 
 os.chdir(args.main_dir)
 
-all_name_array = pd.read_csv("go_name_in_obo.csv", header=None)
-all_name_array = list (all_name_array[0])
-args.num_label = len(all_name_array)
+full_label_name_array = pd.read_csv("go_name_in_obo.csv", header=None)
+full_label_name_array = list (full_label_name_array[0])
+args.num_label = len(full_label_name_array)
 
 
 ## **** supposed we want to do testing on subset, to repeat deepgo baseline
@@ -64,27 +64,27 @@ if (args.num_label_to_test == 0) and (args.label_subset_file is None):
 elif args.label_subset_file is not None:
 
   ## we must properly extract the labels wanted
-  ## if we do not want to update GO encoder, then we don't actually need this "if" statement. we can directly remove legacy terms from @go_name_in_obo.csv when creating @all_name_array
+  ## if we do not want to update GO encoder, then we don't actually need this "if" statement. we can directly remove legacy terms from @go_name_in_obo.csv when creating @full_label_name_array
 
   print ('\n\nloading this set of go terms {}'.format(args.label_subset_file))
 
   ## we can do legacy GO terms if we don't care about the definitions
 
   label_to_test = pd.read_csv(args.label_subset_file, header=None)
-  label_to_test = sorted ( list (label_to_test[0]) ) ## must sort, because we sort @all_name_array. we want the same ordering if we use @edge_index and run GCN to get emb. ORDERING DOES NOT MATTER IF WE DON'T USE GO DEFINITIONS
+  label_to_test = sorted ( list (label_to_test[0]) ) ## must sort, because we sort @full_label_name_array. we want the same ordering if we use @edge_index and run GCN to get emb. ORDERING DOES NOT MATTER IF WE DON'T USE GO DEFINITIONS
 
   print ('\n\ntotal label to test before filter legacy terms {}'.format(len(label_to_test)))
 
-  label_to_test = [l for l in label_to_test if l in all_name_array] ## legacy terms will not be found in newest data
+  label_to_test = [l for l in label_to_test if l in full_label_name_array] ## legacy terms will not be found in newest data
 
   args.num_label_to_test = len(label_to_test)
   print ('total label to test {}\n\n'.format(len(label_to_test)))
 
-  ## get indexing of label to test from @all_name_array
-  ## **** must be using the indexing from @all_name_array because GCN requires the graph, and @edge_index is made from this @all_name_array
-  ## **** BERT will not need this graph, so for bert, maybe we just replace @all_name_array with @label_to_test ?
+  ## get indexing of label to test from @full_label_name_array
+  ## **** must be using the indexing from @full_label_name_array because GCN requires the graph, and @edge_index is made from this @full_label_name_array
+  ## **** BERT will not need this graph, so for bert, maybe we just replace @full_label_name_array with @label_to_test ?
 
-  # label_to_test_index = np.array ( [all_name_array.index(label) for label in label_to_test] )
+  # label_to_test_index = np.array ( [full_label_name_array.index(label) for label in label_to_test] )
   label_to_test_index = np.arange( args.num_label_to_test ) ## extract all labels
 
 
@@ -98,7 +98,7 @@ if args.tree :
   label_in_ontology = sorted (list ( label_in_ontology[0] ) )
 
   # create label_in_ontology_index
-  label_in_ontology_index = np.array ( [all_name_array.index(label) for label in label_in_ontology] ) ## used to extract terms in MF or BP or CC from a large @go_emb
+  label_in_ontology_index = np.array ( [full_label_name_array.index(label) for label in label_in_ontology] ) ## used to extract terms in MF or BP or CC from a large @go_emb
 
   args.num_label_to_test = len(label_in_ontology)
   print ('because using tree, we need to add children terms, update total label to test {}\n\n'.format(len(label_in_ontology)))
@@ -131,20 +131,20 @@ if args.w2v_emb is not None: ## we can just treat each node as a vector without 
   Vocab = load_vocab(args.vocab_list) # all words found in pubmed and trained in w2v ... should trim down
 
 ## reading in feature label is in @GCN folder. too lazy to port this function out.
-LabelDescLoader = GCN_data_loader.LabelProcessor()
+LabelDescLoader = LabelDescDataLoaderClass.LabelProcessor()
 
 if args.tree:
   # @label_in_ontology to get GO in the whole ontology, will be needed if we use tree method
   LabelSamples = LabelDescLoader.get_examples(args.data_dir, label_array=label_in_ontology)
-  LabelSamples = GCN_data_loader.convert_labels_to_features(LabelSamples, MAX_SEQ_LEN_LABEL_DEF, Vocab, all_name_array=label_in_ontology, tokenize_style='space')
+  LabelSamples = LabelDescDataLoaderClass.LabelDescription2FeatureInput(LabelSamples, MAX_SEQ_LEN_LABEL_DEF, Vocab, full_label_name_array=label_in_ontology, tokenize_style='space')
 
 else:
   ## only get vectors for labels we want.
   LabelSamples = LabelDescLoader.get_examples(args.data_dir, label_array=label_to_test)
-  LabelSamples = GCN_data_loader.convert_labels_to_features(LabelSamples, MAX_SEQ_LEN_LABEL_DEF, Vocab, all_name_array=label_to_test, tokenize_style='space')
+  LabelSamples = LabelDescDataLoaderClass.LabelDescription2FeatureInput(LabelSamples, MAX_SEQ_LEN_LABEL_DEF, Vocab, full_label_name_array=label_to_test, tokenize_style='space')
 
 
-GO_loader_for_precomp, GO_name_for_precomp = GCN_data_loader.make_label_loader (LabelSamples,args.batch_size_bert,fp16=False) ## if we fix encoder, then we don't have to worry about batch size, should be able to handle 32 or even 64
+GO_loader_for_precomp, GO_name_for_precomp = LabelDescDataLoaderClass.LakeLabelDescLoader (LabelSamples,args.batch_size_pretrain_bert,fp16=False) ## if we fix encoder, then we don't have to worry about batch size, should be able to handle 32 or even 64
 
 
 ## **** load protein data
@@ -155,9 +155,9 @@ if args.ontology is None:
 else:
   add_name = '-' + args.ontology
 
-train_loader = protSeqLoader.ProtLoader (args.data_dir, 'train'+add_name+'.tsv', all_name_array, MAX_SEQ_LEN, 'random', args, args.do_kmer, label_to_test)
+train_loader = protSeqLoader.ProtLoader (args.data_dir, 'train'+add_name+'.tsv', full_label_name_array, MAX_SEQ_LEN, 'random', args, args.do_kmer, label_to_test)
 
-dev_loader = protSeqLoader.ProtLoader (args.data_dir, 'dev'+add_name+'.tsv', all_name_array, MAX_SEQ_LEN, 'sequential', args, args.do_kmer, label_to_test)
+dev_loader = protSeqLoader.ProtLoader (args.data_dir, 'dev'+add_name+'.tsv', full_label_name_array, MAX_SEQ_LEN, 'sequential', args, args.do_kmer, label_to_test)
 
 
 ## **** make model ****
@@ -307,7 +307,7 @@ print ('\n\nload back best model based on dev set {}'.format(os.path.join(args.r
 prot2seq_model.load_state_dict( torch.load( os.path.join(args.result_folder,"best_state_dict.pytorch") ), strict=False )
 
 ## load test set
-test_loader = protSeqLoader.ProtLoader (args.data_dir, 'test'+add_name+'.tsv', all_name_array, MAX_SEQ_LEN, 'sequential', args, args.do_kmer, label_to_test)
+test_loader = protSeqLoader.ProtLoader (args.data_dir, 'test'+add_name+'.tsv', full_label_name_array, MAX_SEQ_LEN, 'sequential', args, args.do_kmer, label_to_test)
 print ('\non test set\n')
 prot2seq_model.do_eval(test_loader, **other_params)
 

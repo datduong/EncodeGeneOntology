@@ -14,7 +14,7 @@ from pytorch_pretrained_bert.tokenization import BertTokenizer, load_vocab, whit
 
 logger = logging.getLogger(__name__)
 
-def icd9_tokenizer_style (vocab,text_a):
+def SpaceSimpleTokenizer (vocab,text_a):
   # we follow same tokenization approach in original paper
   # @Vocab is some object that convert words to index exactly in the order of the pretrained word vectors.
   # use Vocab = load_vocab('/local/datdb/MIMIC3database/format10Jan2019/vocab+icd_index_map.txt')
@@ -194,7 +194,7 @@ class QnliProcessor(DataProcessor):
     return examples
 
 
-def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer, all_name_array=None):
+def StringInput2FeatureInput(examples, label_list, max_seq_length, tokenizer, full_label_name_array=None):
   """Loads a data file into a list of `InputBatch`s."""
 
   label_map = {label : i for i, label in enumerate(label_list)}
@@ -206,8 +206,8 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     ## label
     try: ## some terms have changed, legacy input file
       # print ('see {}'.format(example.name_a))
-      # print (all_name_array[0:10])
-      input_pos=[all_name_array.index(example.name_a), all_name_array.index(example.name_b)]
+      # print (full_label_name_array[0:10])
+      input_pos=[full_label_name_array.index(example.name_a), full_label_name_array.index(example.name_b)]
     except:
       continue
 
@@ -262,7 +262,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
   return features
 
 
-def make_data_loader (train_features,batch_size,fp16=False,sampler='random',metric_option='cosine') :
+def MakeDataLoader4Model (train_features,batch_size,fp16=False,sampler='random',metric_option='cosine') :
 
   all_input_pos = [f.input_pos for f in train_features]
   all_input_pos = np.array(all_input_pos)
@@ -350,17 +350,17 @@ class LabelProcessor(DataProcessor):
     return examples
 
 
-def convert_labels_to_features(examples, max_seq_length, tokenizer, all_name_array, tokenize_style="space"):
+def LabelDescription2FeatureInput(examples, max_seq_length, tokenizer, full_label_name_array, tokenize_style="space"):
   """Loads a data file into a list of `InputBatch`s."""
 
-  features = np.zeros( len(all_name_array) ).tolist()
+  features = np.zeros( len(full_label_name_array) ).tolist()
 
   for (ex_index, example) in enumerate(examples):
 
     if tokenize_style == 'bert':
       input_ids, input_len = bert_tokenizer_style(tokenizer, example.text_a, add_cls_sep=True)
     else:
-      input_ids, input_len = icd9_tokenizer_style(tokenizer, example.text_a)
+      input_ids, input_len = SpaceSimpleTokenizer(tokenizer, example.text_a)
 
     # The mask has 1 for real tokens and 0 for padding tokens. Only real
     # tokens are attended to.
@@ -387,7 +387,7 @@ def convert_labels_to_features(examples, max_seq_length, tokenizer, all_name_arr
       print("input_ids: %s" % " ".join([str(x) for x in input_ids]))
       print("input_mask: %s" % " ".join([str(x) for x in input_mask]))
 
-    features[all_name_array.index(example.name_a)] = LabelFeatures(input_ids=input_ids,
+    features[full_label_name_array.index(example.name_a)] = LabelFeatures(input_ids=input_ids,
                                                                    input_len=input_len,  # true len, not count in the 0-pad
                                                                    input_name=example.name_a,
                                                                    input_mask=input_mask
@@ -396,7 +396,7 @@ def convert_labels_to_features(examples, max_seq_length, tokenizer, all_name_arr
   return features
 
 
-def make_label_loader (train_features,batch_size,fp16) :
+def LakeLabelDescLoader (train_features,batch_size,fp16) :
 
   # must keep labels as they appear in @label_index_map
 

@@ -9,7 +9,7 @@ import numpy as np
 from collections import namedtuple
 from tempfile import TemporaryDirectory
 
-from copy import deepcopy 
+from copy import deepcopy
 
 import logging
 import json
@@ -258,6 +258,27 @@ class encoder_model (nn.Module) :
 
     return result, preds, tr_loss
 
+  def write_label_vector (self,labeldesc_loader,edge_index,fout_name,label_name):
+    self.eval()
+
+    if fout_name is not None:
+      fout = open(fout_name,'w')
+      if self.args.reduce_cls_vec:
+        fout.write(str(len(label_name)) + " " + str(300) + "\n")
+      else:
+        fout.write(str(len(label_name)) + " " + str(768) + "\n")
+
+    label_emb = self.gcn_2layer(labeldesc_loader,edge_index) ##!! only need to call graph-forward-pass 
+
+    if fout_name is not None:
+      for row in range ( label_emb.shape[0] ) :
+        fout.write( label_name[counter] + " " + " ".join(str(m) for m in label_emb[row]) + "\n" ) ## space, because gensim format
+        counter = counter + 1
+      #
+      fout.close()
+
+    return label_emb
+
 
 class encoder_model_conv1d (encoder_model):
 
@@ -343,7 +364,7 @@ class encoder_model_avepool (encoder_model):
       label_idx.data = label_idx.data[ : , 0:int(max(label_len)) ] ## trim down to max len in this batch
 
       label_idx = label_idx.cuda()
-      label_len = label_len.cuda() 
+      label_len = label_len.cuda()
 
       # if we use @EmbeddingBag, then we get word vector THAT ARE SUM TOGETHER ? @label_idx will be batch_size x word_vec_dim
       label_idx = self.label_embedding(label_idx) ## get sum of word embedding for each sent
@@ -412,7 +433,7 @@ class encoder_model_biLstm (encoder_model):
 
 
 class encoder_model_extended_embedding (encoder_model):
-  
+
   def __init__(self,args,metric_module, **kwargs):
 
     # add some vector like Onto2vec BiLSTM BERT into GCN
@@ -423,30 +444,30 @@ class encoder_model_extended_embedding (encoder_model):
       self.label_embedding = nn.Embedding(kwargs['num_of_word'],kwargs['word_vec_dim'])
       self.label_embedding.weight.data.copy_(torch.from_numpy(kwargs['pretrained_weight']))
       # freeze emb by doing @fix_word_emb
-      # No need... self.label_embedding.requires_grad=False ## turn of gradient here ? 
+      # No need... self.label_embedding.requires_grad=False ## turn of gradient here ?
     else:
       print('\n\nERROR: Must provide pretrained_weight for this model\n\n')
       exit()
 
-    self.gcn1 = GCNConv(args.def_emb_dim + args.gcn_native_emb_dim , args.gcnn_dim) # args.def_emb_dim + args.gcn_native_emb_dim 
+    self.gcn1 = GCNConv(args.def_emb_dim + args.gcn_native_emb_dim , args.gcnn_dim) # args.def_emb_dim + args.gcn_native_emb_dim
     self.gcn2 = GCNConv(args.gcnn_dim, args.gcnn_dim)
 
     # self.LinearCombine = nn.Linear(args.def_emb_dim+args.gcnn_dim, args.gcnn_dim)
 
     self.dropout = nn.Dropout(p=kwargs['dropout'])
 
-    ## let gcn capture information not found in BERT or BiLSTM or whatever. 
-    self.gcn_native_emb = nn.Embedding(args.num_label,args.gcn_native_emb_dim) 
+    ## let gcn capture information not found in BERT or BiLSTM or whatever.
+    self.gcn_native_emb = nn.Embedding(args.num_label,args.gcn_native_emb_dim)
     self.gcn_native_emb.weight.data.normal_(mean=0.0, std=0.2)
 
   def gcn_2layer (self,labeldesc_loader,edge_index):
-    
+
     combined_embed = torch.cat((self.label_embedding.weight, self.gcn_native_emb.weight), 1)
     node_emb = self.nonlinear_gcnn ( self.gcn1.forward ( self.dropout ( combined_embed ), edge_index) ) ## take in entire label space at once
     node_emb = self.gcn2.forward (node_emb, edge_index) ## not relu or tanh in last layer
 
-    ## try concat @label_embedding after we call gcn 
-    # node_emb = self.nonlinear_gcnn ( self.gcn1.forward ( self.dropout ( self.gcn_native_emb.weight ), edge_index) ) 
+    ## try concat @label_embedding after we call gcn
+    # node_emb = self.nonlinear_gcnn ( self.gcn1.forward ( self.dropout ( self.gcn_native_emb.weight ), edge_index) )
     # node_emb = self.gcn2.forward (node_emb, edge_index) ## not relu or tanh in last layer
     # node_emb = torch.cat((self.label_embedding.weight, node_emb), 1)
     # node_emb = self.LinearCombine(node_emb)
@@ -455,37 +476,37 @@ class encoder_model_extended_embedding (encoder_model):
 
 
 class encoder_with_bert (encoder_model): # add some vector like Onto2vec BiLSTM BERT into GCN
-  
+
   def __init__(self,args,BertModel,metric_module, **kwargs):
     super(encoder_with_bert, self).__init__(args,metric_module,**kwargs)
     self.bert = BertModel ## something like bert(GOdef) = GOvec
     self.linear_reduce_bert = nn.Linear(768,512) ## bert is 768, if we don't want to retrain it, then we need to use 768-->512, then appen 512 to GCN
-   
-  def make_optimizer (self,num_train_optimization_steps):  ## use bert style optimizer 
 
-    param_optimizer = list( self.named_parameters() ) ## all the params 
+  def make_optimizer (self,num_train_optimization_steps):  ## use bert style optimizer
+
+    param_optimizer = list( self.named_parameters() ) ## all the params
     no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
     optimizer_grouped_parameters = [
       {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)] , 'weight_decay': 0.01},
       {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)] , 'weight_decay': 0.0}
       ]
-    
+
     optimizer = BertAdam(optimizer_grouped_parameters,
                          lr=self.args.learning_rate,
                          warmup=self.args.warmup_proportion,
                          t_total=num_train_optimization_steps)
-    return optimizer 
+    return optimizer
 
-  
-  def get_label_gcn (self,batch,edge_index): 
 
-    label_emb_gcn = self.gcn_2layer(None, edge_index) ## @labeldesc_loader was mean to be at None, but we don't care about label loader if we just use simple emb. 
+  def get_label_gcn (self,batch,edge_index):
+
+    label_emb_gcn = self.gcn_2layer(None, edge_index) ## @labeldesc_loader was mean to be at None, but we don't care about label loader if we just use simple emb.
     label_id_number_left, label_id_number_right, _, _, _, _, _, _, _ = batch
     label_id_number_left = label_id_number_left.squeeze(1).data.numpy() ## using as indexing, so have to be array int, not tensor
     label_id_number_right = label_id_number_right.squeeze(1).data.numpy()
     return label_emb_gcn[label_id_number_left] , label_emb_gcn[label_id_number_right]
 
-  def get_label_bert (self,batch): 
+  def get_label_bert (self,batch):
 
     _, _, label_desc1, label_len1, label_mask1, label_desc2, label_len2, label_mask2, _ = batch
 
@@ -521,14 +542,14 @@ class encoder_with_bert (encoder_model): # add some vector like Onto2vec BiLSTM 
 
         batch = tuple(t for t in batch)
 
-        _, _, _, _, _, _, _, _, label_ids = batch ## seem so stupid 
+        _, _, _, _, _, _, _, _, label_ids = batch ## seem so stupid
 
         label_gcn1, label_gcn2 = self.get_label_gcn (batch,edge_index)
         label_bert1, label_bert2 = self.get_label_bert (batch)
 
         loss, _ = self.metric_module.forward(
-          torch.cat((label_gcn1,label_bert1),1), 
-          torch.cat((label_gcn2,label_bert2),1), 
+          torch.cat((label_gcn1,label_bert1),1),
+          torch.cat((label_gcn2,label_bert2),1),
           true_label=label_ids.cuda())
 
         if self.args.gradient_accumulation_steps > 1:
@@ -584,14 +605,14 @@ class encoder_with_bert (encoder_model): # add some vector like Onto2vec BiLSTM 
       batch = tuple(t for t in batch)
 
       with torch.no_grad():
-        _, _, _, _, _, _, _, _, label_ids = batch ## seem so stupid 
+        _, _, _, _, _, _, _, _, label_ids = batch ## seem so stupid
 
         label_gcn1, label_gcn2 = self.get_label_gcn (batch,edge_index)
         label_bert1, label_bert2 = self.get_label_bert (batch)
 
         loss, score = self.metric_module.forward(
-          torch.cat((label_gcn1,label_bert1),1), 
-          torch.cat((label_gcn2,label_bert2),1), 
+          torch.cat((label_gcn1,label_bert1),1),
+          torch.cat((label_gcn2,label_bert2),1),
           true_label=label_ids.cuda())
 
         tr_loss = tr_loss + loss
@@ -622,7 +643,7 @@ class encoder_with_bert (encoder_model): # add some vector like Onto2vec BiLSTM 
     torch.cuda.empty_cache()
     return result, preds, tr_loss
 
- 
+
 
 
 

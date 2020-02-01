@@ -20,7 +20,7 @@ cd $server/GOmultitask
 
 ## notice we do not add the reduce-flag to call the linear layer in cosine-module. because this would not be the original implementation of GCN
 ## NOT USE @reduce_cls_vec
-CUDA_VISIBLE_DEVICES=5 python3 $server/GOmultitask/GCN/encoder/do_model.py --lr 0.001 --main_dir $work_dir --qnli_dir $data_dir --batch_size_label 24 --result_folder $result_folder --epoch 100 --use_cuda --metric_option $metric_option --nonlinear_gcnn $nonlinear_gcnn --def_emb_dim $def_emb_dim --gcnn_dim $gcnn_dim > $result_folder/train3.log
+CUDA_VISIBLE_DEVICES=5 python3 $server/GOmultitask/GCN/encoder/do_model.py --lr 0.001 --main_dir $work_dir --qnli_dir $data_dir --batch_size_aa_go 24 --result_folder $result_folder --epoch 100 --use_cuda --metric_option $metric_option --nonlinear_gcnn $nonlinear_gcnn --def_emb_dim $def_emb_dim --gcnn_dim $gcnn_dim > $result_folder/train3.log
 
 
 
@@ -46,6 +46,6 @@ cd $server/GOmultitask
 
 ## notice we do not add the reduce-flag to call the linear layer in cosine-module. because this would not be the original implementation of GCN
 ## NOT USE @reduce_cls_vec
-CUDA_VISIBLE_DEVICES=5 python3 $server/GOmultitask/GCN/encoder/do_model.py --lr 0.001 --main_dir $work_dir --qnli_dir $data_dir --batch_size_label 24 --result_folder $result_folder --epoch 100 --use_cuda --metric_option $metric_option --nonlinear_gcnn $nonlinear_gcnn --def_emb_dim $def_emb_dim --gcnn_dim $gcnn_dim > $result_folder/train3.log
+CUDA_VISIBLE_DEVICES=5 python3 $server/GOmultitask/GCN/encoder/do_model.py --lr 0.001 --main_dir $work_dir --qnli_dir $data_dir --batch_size_aa_go 24 --result_folder $result_folder --epoch 100 --use_cuda --metric_option $metric_option --nonlinear_gcnn $nonlinear_gcnn --def_emb_dim $def_emb_dim --gcnn_dim $gcnn_dim > $result_folder/train3.log
 
 

@@ -53,10 +53,10 @@ if args.use_cuda:
 
 print ('num of edges {}'.format(edge_index.shape))
 
-all_name_array = pd.read_csv("go_name_in_obo.csv", header=None)
-all_name_array = list (all_name_array[0])
+full_label_name_array = pd.read_csv("go_name_in_obo.csv", header=None)
+full_label_name_array = list (full_label_name_array[0])
 
-args.num_label = len(all_name_array)
+args.num_label = len(full_label_name_array)
 
 ## **** load label description data ****
 
@@ -65,15 +65,15 @@ if (args.w2v_emb is not None) and (args.word_mode != 'PretrainedGO'): ## we can 
   ## if we do PretrainedGO vector, we don't need the GO definitions
 
   Vocab = load_vocab(args.vocab_list) # all words found in pubmed and trained in w2v ... should trim down
-  processor = data_loader.LabelProcessor()
-  label_desc_examples = processor.get_examples(args.main_dir, all_name_array) ## must get all labels
+  InputReader = data_loader.LabelProcessor()
+  label_desc_examples = InputReader.get_examples(args.main_dir, full_label_name_array) ## must get all labels
 
-  label_desc_features = data_loader.convert_labels_to_features(label_desc_examples,max_seq_length=MAX_SEQ_LEN, tokenizer=Vocab, all_name_array=all_name_array,tokenize_style="space")
+  label_desc_features = data_loader.LabelDescription2FeatureInput(label_desc_examples,max_seq_length=MAX_SEQ_LEN, tokenizer=Vocab, full_label_name_array=full_label_name_array,tokenize_style="space")
 
   if args.batch_size_label_desc == 0:
     args.batch_size_label_desc = args.num_label
 
-  label_desc_dataloader, label_desc_name = data_loader.make_label_loader (label_desc_features,batch_size=args.batch_size_label_desc,fp16=args.fp16) # len(label_desc_examples)
+  label_desc_dataloader, label_desc_name = data_loader.LakeLabelDescLoader (label_desc_features,batch_size=args.batch_size_label_desc,fp16=args.fp16) # len(label_desc_examples)
 
   print ('num of label desc to be transformed by gcn {}'.format ( len(label_desc_examples) )  )
 
@@ -81,32 +81,32 @@ else:
   label_desc_dataloader = None
 
 ## **** for the rest, we don't use the "GO:"
-# all_name_array = [ re.sub(r"GO:","",g) for g in all_name_array ]
+# full_label_name_array = [ re.sub(r"GO:","",g) for g in full_label_name_array ]
 
 
 ## read go terms entailment pairs to train
 
-processor = data_loader.QnliProcessor()
-label_list = processor.get_labels() ## no/yes entailment style
+InputReader = data_loader.QnliProcessor()
+label_list = InputReader.get_labels() ## no/yes entailment style
 num_labels = len(label_list) ## no/yes entailment style, not the total # node label
 
 if args.test_file is None:
 
-  # all_name_array = [ re.sub(r"GO:","",g) for g in all_name_array ]
+  # full_label_name_array = [ re.sub(r"GO:","",g) for g in full_label_name_array ]
 
   ## get label-label entailment data
-  train_label_examples = processor.get_train_examples(args.qnli_dir,"train"+"_"+args.metric_option+".tsv")
-  train_label_features = data_loader.convert_examples_to_features(train_label_examples, label_list, all_name_array)
-  train_label_dataloader = data_loader.make_data_loader (train_label_features,batch_size=args.batch_size_label,fp16=args.fp16, sampler='random',metric_option=args.metric_option)
+  train_label_examples = InputReader.get_train_examples(args.qnli_dir,"train"+"_"+args.metric_option+".tsv")
+  train_label_features = data_loader.StringInput2FeatureInput(train_label_examples, label_list, full_label_name_array)
+  train_label_dataloader = data_loader.MakeDataLoader4Model (train_label_features,batch_size=args.batch_size_aa_go,fp16=args.fp16, sampler='random',metric_option=args.metric_option)
   # torch.save( train_label_dataloader, os.path.join(args.qnli_dir,"train_label_dataloader"+name_add_on+".pytorch") )
   print ('\ntrain_label_examples {}'.format(len(train_label_examples))) # train_label_examples 35776
 
   """ get dev or test set  """
   # get label-label entailment data
-  processor = data_loader.QnliProcessor()
-  dev_label_examples = processor.get_dev_examples(args.qnli_dir,"dev"+"_"+args.metric_option+".tsv")
-  dev_label_features = data_loader.convert_examples_to_features(dev_label_examples, label_list, all_name_array)
-  dev_label_dataloader = data_loader.make_data_loader (dev_label_features,batch_size=args.batch_size_label,fp16=args.fp16, sampler='sequential',metric_option=args.metric_option)
+  InputReader = data_loader.QnliProcessor()
+  dev_label_examples = InputReader.get_dev_examples(args.qnli_dir,"dev"+"_"+args.metric_option+".tsv")
+  dev_label_features = data_loader.StringInput2FeatureInput(dev_label_examples, label_list, full_label_name_array)
+  dev_label_dataloader = data_loader.MakeDataLoader4Model (dev_label_features,batch_size=args.batch_size_aa_go,fp16=args.fp16, sampler='sequential',metric_option=args.metric_option)
   # torch.save( dev_label_dataloader, os.path.join( args.qnli_dir, "dev_label_dataloader"+name_add_on+".pytorch") )
   print ('\ndev_label_examples {}'.format(len(dev_label_examples))) # dev_label_examples 7661
 
@@ -127,8 +127,8 @@ if args.w2v_emb is not None:
   try: ## load standard pickle that is already in numpy
     pretrained_weight.shape[0] ## will throw error if load in file is not a matrix
   except: ## onto2vec is dictionary {go:vec}
-    temp = np.zeros((len(all_name_array), args.def_emb_dim ))
-    for index,go in enumerate (all_name_array):  ## must keep this exact order
+    temp = np.zeros((len(full_label_name_array), args.def_emb_dim ))
+    for index,go in enumerate (full_label_name_array):  ## must keep this exact order
       if go not in pretrained_weight: 
         go = re.sub("GO:","",go)
       # enforce strict "GO:xyz" but onto2vec doesn't have this
@@ -212,22 +212,21 @@ if args.epoch > 0 : ## here we do training
   model.load_state_dict( torch.load( os.path.join(args.result_folder,"best_state_dict"+name_add_on+".pytorch") ) )
 
 
-
 print ('\n\nload test data\n\n')
 
 # get label-label entailment data
-processor = data_loader.QnliProcessor()
+InputReader = data_loader.QnliProcessor()
 
 if args.test_file is None:
   args.test_file = args.qnli_dir,"test"+"_"+args.metric_option+".tsv"
-  dev_label_examples = processor.get_dev_examples(args.test_file)
+  dev_label_examples = InputReader.get_dev_examples(args.test_file)
 else:
-  dev_label_examples = processor.get_test_examples(args.test_file)
+  dev_label_examples = InputReader.get_test_examples(args.test_file)
 
 print ('\n\ntest file name{}'.format(args.test_file))
 
-dev_label_features = data_loader.convert_examples_to_features(dev_label_examples, label_list, all_name_array)
-dev_label_dataloader = data_loader.make_data_loader (dev_label_features,batch_size=args.batch_size_label,fp16=args.fp16, sampler='sequential',metric_option=args.metric_option)
+dev_label_features = data_loader.StringInput2FeatureInput(dev_label_examples, label_list, full_label_name_array)
+dev_label_dataloader = data_loader.MakeDataLoader4Model (dev_label_features,batch_size=args.batch_size_aa_go,fp16=args.fp16, sampler='sequential',metric_option=args.metric_option)
 
 
 print ('\ntest_label_examples {}'.format(len(dev_label_examples))) # dev_label_examples 7661
