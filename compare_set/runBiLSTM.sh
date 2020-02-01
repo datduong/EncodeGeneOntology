@@ -36,7 +36,7 @@ do
   write_score=$finalDir/'Ortholog2testDef.'$point'.score.txt'
 
   ## set epoch=0 for testing
-  CUDA_VISIBLE_DEVICES=5 python3 $server/GOmultitask/biLSTM/encoder/do_model.py --model_load $model_load --fix_word_emb --vocab_list $vocab_list --w2v_emb $w2v_emb --bilstm_dim 1024 --main_dir $work_dir --qnli_dir $data_dir --batch_size_label 128 --result_folder $result_folder --epoch 0 --use_cuda --metric_option $metric_option --def_emb_dim $def_emb_dim --reduce_cls_vec --test_file $test_file --write_score $write_score > $result_folder/test1.log
+  CUDA_VISIBLE_DEVICES=5 python3 $server/GOmultitask/biLSTM/encoder/do_model.py --model_load $model_load --fix_word_emb --vocab_list $vocab_list --w2v_emb $w2v_emb --bilstm_dim 1024 --main_dir $work_dir --qnli_dir $data_dir --batch_size_aa_go 128 --result_folder $result_folder --epoch 0 --use_cuda --metric_option $metric_option --def_emb_dim $def_emb_dim --reduce_cls_vec --test_file $test_file --write_score $write_score > $result_folder/test1.log
 
   paste $test_file $write_score > $finalDir/'score.'$point'.txt' ## append columns 
 
@@ -92,7 +92,7 @@ do
   write_score=$finalDir/'PPI2testDef.'$point'.score.txt'
 
   ## set epoch=0 for testing
-  CUDA_VISIBLE_DEVICES=5 python3 $server/GOmultitask/biLSTM/encoder/do_model.py --model_load $model_load --fix_word_emb --vocab_list $vocab_list --w2v_emb $w2v_emb --bilstm_dim 1024 --main_dir $work_dir --qnli_dir $data_dir --batch_size_label 128 --result_folder $result_folder --epoch 0 --use_cuda --metric_option $metric_option --def_emb_dim $def_emb_dim --reduce_cls_vec --test_file $test_file --write_score $write_score > $result_folder/test1.log
+  CUDA_VISIBLE_DEVICES=5 python3 $server/GOmultitask/biLSTM/encoder/do_model.py --model_load $model_load --fix_word_emb --vocab_list $vocab_list --w2v_emb $w2v_emb --bilstm_dim 1024 --main_dir $work_dir --qnli_dir $data_dir --batch_size_aa_go 128 --result_folder $result_folder --epoch 0 --use_cuda --metric_option $metric_option --def_emb_dim $def_emb_dim --reduce_cls_vec --test_file $test_file --write_score $write_score > $result_folder/test1.log
 
   paste $test_file $write_score > $finalDir/'score.'$point'.txt' ## append columns 
   # rm -f $test_file

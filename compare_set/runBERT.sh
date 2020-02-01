@@ -37,7 +37,7 @@ do
   write_score=$finalDir/'Ortholog2testDef.'$point'.score.txt'
 
   ## set epoch=0 for testing
-  CUDA_VISIBLE_DEVICES=5 python3 $server/GOmultitask/BERT/encoder/do_model.py --main_dir $work_dir --qnli_dir $data_dir --batch_size_label 128 --batch_size_bert 8 --bert_model $bert_model --pregenerated_data $pregenerated_data --bert_output_dir $bert_output_dir --result_folder $result_folder --epoch 0 --num_train_epochs_entailment 0 --use_cuda --metric_option $metric_option --def_emb_dim $def_emb_dim --reduce_cls_vec --model_load $model_load --write_score $write_score --test_file $test_file --average_layer --layer_index 1 > $result_folder/test1.log
+  CUDA_VISIBLE_DEVICES=5 python3 $server/GOmultitask/BERT/encoder/do_model.py --main_dir $work_dir --qnli_dir $data_dir --batch_size_aa_go 128 --batch_size_pretrain_bert 8 --bert_model $bert_model --pregenerated_data $pregenerated_data --bert_output_dir $bert_output_dir --result_folder $result_folder --epoch 0 --num_train_epochs_entailment 0 --use_cuda --metric_option $metric_option --def_emb_dim $def_emb_dim --reduce_cls_vec --model_load $model_load --write_score $write_score --test_file $test_file --average_layer --layer_index 1 > $result_folder/test1.log
 
   paste $test_file $write_score > $finalDir/'score.'$point'.txt' ## append columns 
   # rm -f $test_file
@@ -98,7 +98,7 @@ write_score=$finalDir/'PPI2testDef.'$point'.score.txt'
 
 
 ## set epoch=0 for testing
-CUDA_VISIBLE_DEVICES=6 python3 $server/GOmultitask/BERT/encoder/do_model.py --main_dir $work_dir --qnli_dir $data_dir --batch_size_label 64 --batch_size_bert 8 --bert_model $bert_model --pregenerated_data $pregenerated_data --bert_output_dir $bert_output_dir --result_folder $result_folder --epoch 0 --num_train_epochs_entailment 0 --use_cuda --metric_option $metric_option --def_emb_dim $def_emb_dim --reduce_cls_vec --model_load $model_load --write_score $write_score --test_file $test_file > $result_folder/test1.log
+CUDA_VISIBLE_DEVICES=6 python3 $server/GOmultitask/BERT/encoder/do_model.py --main_dir $work_dir --qnli_dir $data_dir --batch_size_aa_go 64 --batch_size_pretrain_bert 8 --bert_model $bert_model --pregenerated_data $pregenerated_data --bert_output_dir $bert_output_dir --result_folder $result_folder --epoch 0 --num_train_epochs_entailment 0 --use_cuda --metric_option $metric_option --def_emb_dim $def_emb_dim --reduce_cls_vec --model_load $model_load --write_score $write_score --test_file $test_file > $result_folder/test1.log
 
 paste $test_file $write_score > $finalDir/'score.'$point'.txt' ## append columns 
 
@@ -151,7 +151,7 @@ do
   write_score=$finalDir/'Ortholog2testDef.'$point'.score.txt'
 
   ## set epoch=0 for testing
-  CUDA_VISIBLE_DEVICES=1 python3 $server/GOmultitask/BERT/encoder/do_model.py --main_dir $work_dir --qnli_dir $data_dir --batch_size_label 64 --batch_size_bert 8 --bert_model $bert_model --pregenerated_data $pregenerated_data --bert_output_dir $bert_output_dir --result_folder $result_folder --epoch 0 --num_train_epochs_entailment 0 --use_cuda --metric_option $metric_option --def_emb_dim $def_emb_dim --reduce_cls_vec --model_load $model_load --write_score $write_score --test_file $test_file > $result_folder/test1.log
+  CUDA_VISIBLE_DEVICES=1 python3 $server/GOmultitask/BERT/encoder/do_model.py --main_dir $work_dir --qnli_dir $data_dir --batch_size_aa_go 64 --batch_size_pretrain_bert 8 --bert_model $bert_model --pregenerated_data $pregenerated_data --bert_output_dir $bert_output_dir --result_folder $result_folder --epoch 0 --num_train_epochs_entailment 0 --use_cuda --metric_option $metric_option --def_emb_dim $def_emb_dim --reduce_cls_vec --model_load $model_load --write_score $write_score --test_file $test_file > $result_folder/test1.log
 
   paste $test_file $write_score > $finalDir/'score.'$point'.txt' ## append columns 
   rm -f $write_score

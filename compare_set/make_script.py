@@ -48,7 +48,7 @@ for point in {0..ENDPOINT..GAP} ;  do
   # write_score=$finalDir/'Ortholog2testDef.'$point'.score.txt'
 
   ## set epoch=0 for testing
-  CUDA_VISIBLE_DEVICES=0 python3 $server/GOmultitask/Precomputed_vector/encoder/do_model.py --main_dir $work_dir --qnli_dir $data_dir --batch_size_label 128 --result_folder $result_folder --epoch 0 --use_cuda --metric_option $metric_option --nonlinear_gcnn $nonlinear_gcnn --def_emb_dim $def_emb_dim --test_file $test_file --write_score $write_score --vocab_list $vocab_list --vector_file $vector_file > $result_folder/test2.log
+  CUDA_VISIBLE_DEVICES=0 python3 $server/GOmultitask/GetSimScorePretrainVec/encoder/do_model.py --main_dir $work_dir --qnli_dir $data_dir --batch_size_aa_go 128 --result_folder $result_folder --epoch 0 --use_cuda --metric_option $metric_option --nonlinear_gcnn $nonlinear_gcnn --def_emb_dim $def_emb_dim --test_file $test_file --write_score $write_score --vocab_list $vocab_list --vector_file $vector_file > $result_folder/test2.log
 
   paste $test_file $write_score > $finalDir/'score.'$point'.txt' ## append columns
 

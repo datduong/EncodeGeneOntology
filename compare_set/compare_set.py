@@ -9,6 +9,19 @@ from collections import namedtuple
 from tempfile import TemporaryDirectory
 
 
+
+def gaf2dict(gaf): ## gaf file to dict {gene:[go]}
+  df = pd.read_csv(gaf,sep="\t",dtype=str)
+  # https://stackoverflow.com/questions/26684199/long-format-pandas-dataframe-to-dictionary
+  # sort GO terms so backtracking is easier
+  return {g: sorted(d['go'].values.tolist()) for g, d in df.groupby('uniprot')} 
+
+
+def def2dict(name="go_def_in_obo.tsv"):
+  GOdef = pd.read_csv(name,dtype=str,sep="\t")
+  return {g: d['def'].values.tolist() for g, d in GOdef.groupby('name')}
+
+
 def uniq(lst):
   last = object()
   for item in lst:
@@ -22,7 +35,7 @@ def sort_and_deduplicate(l):
   return list(uniq(sorted(l, reverse=True)))
 
 
-def hausdorff_distance (score): # @score is matrix
+def hausdorff_distance (score): # @score is matrix ####
   ## compute the distance for both gene1->gene2 and also gene2->gene1
   ## !! WORKS ONLY IF METRIC IS SYMMETRIC TERM1 VS TERM2
   ## in our case, symmetric because cosine or max(A-->B , B-->A)
@@ -33,7 +46,7 @@ def hausdorff_distance (score): # @score is matrix
 	return np.min([rowMean,colMean]) , np.mean([rowMean,colMean])  # hausdorff distance using both min/mean
 
 
-class GenePair () :
+class Make2GenesAsPair () :
   # takes 2 genes, create lookup extraction index
   def __init__(self,gene1,gene2,GeneGOdb1,GeneGOdb2):
     self.gene1 = gene1
@@ -52,29 +65,29 @@ class GenePair () :
         self.GOpair.append ( i + "," + j )
 
 
-class GenePairDict ():
-  def __init__(self,genePairList): ## gene pairs to compare
-    # we will read the genePairList outside of this class
-    # self.genePairList = pd.read_csv(genePairList,sep=" ",dtype=str,header=None)
-    self.genePairList = genePairList
-    self.genePairList.columns = ['gene1','gene2','label']
+class MakeDict2GenesAsPair ():
+  def __init__(self,Pair2GenesArray): ## gene pairs to compare
+    # we will read the Pair2GenesArray outside of this class
+    # self.Pair2GenesArray = pd.read_csv(Pair2GenesArray,sep=" ",dtype=str,header=None)
+    self.Pair2GenesArray = Pair2GenesArray
+    self.Pair2GenesArray.columns = ['gene1','gene2','label']
 
   def make_pair (self,GeneGOdb1,GeneGOdb2):
 
-    geneSet1 = list (self.genePairList['gene1'])
-    geneSet2 = list (self.genePairList['gene2'])
-    label = list (self.genePairList['label'])
+    geneSet1 = list (self.Pair2GenesArray['gene1'])
+    geneSet2 = list (self.Pair2GenesArray['gene2'])
+    label = list (self.Pair2GenesArray['label'])
 
     self.genePair = {}
     self.LargeGOpair = {}
 
-    for index in tqdm ( range (self.genePairList.shape[0]) ) :
+    for index in tqdm ( range (self.Pair2GenesArray.shape[0]) ) :
 
       if (geneSet1[index] not in GeneGOdb1) or (geneSet2[index] not in GeneGOdb2):
         print ('skip {} , {}'.format(geneSet1[index], geneSet2[index]))
         continue
 
-      thisPair = GenePair (geneSet1[index],geneSet2[index],GeneGOdb1,GeneGOdb2) ## create gene pair object
+      thisPair = Make2GenesAsPair (geneSet1[index],geneSet2[index],GeneGOdb1,GeneGOdb2) ## create gene pair object
       self.genePair[ geneSet1[index]+","+geneSet2[index] ] = [ thisPair, label[index] ] ## add to list that we have seen
 
       for p in thisPair.GOpair: ## GO pairs for these 2 genes
@@ -127,16 +140,4 @@ class GenePairDict ():
 
     # end
     fout.close() 
-
-
-def gaf2dict(gaf): ## gaf file to dict {gene:[go]}
-  df = pd.read_csv(gaf,sep="\t",dtype=str)
-  # https://stackoverflow.com/questions/26684199/long-format-pandas-dataframe-to-dictionary
-  # sort GO terms so backtracking is easier
-  return {g: sorted(d['go'].values.tolist()) for g, d in df.groupby('uniprot')} 
-
-
-def def2dict(name="go_def_in_obo.tsv"):
-  GOdef = pd.read_csv(name,dtype=str,sep="\t")
-  return {g: d['def'].values.tolist() for g, d in GOdef.groupby('name')}
 

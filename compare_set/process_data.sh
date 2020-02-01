@@ -11,11 +11,11 @@ gaf1=$previousSource/'mgi_not_IEA.tsv' #goa_human_not_IEA
 gaf2=$previousSource/'fb_not_IEA.tsv'
 
 pair='MouseFly'
-genePairList=$server/'geneOrtholog/'$pair'Score/'$pair'Ortholog2TestTrim.txt'
+Pair2GenesArray=$server/'geneOrtholog/'$pair'Score/'$pair'Ortholog2TestTrim.txt'
 outDir=$server/'geneOrtholog/'$pair'Score/qnliFormatData17'
 mkdir $outDir
 
-wc -l $genePairList
+wc -l $Pair2GenesArray
 
 gapSize=300
 for point in {0..12900..300} # 3900 22800 10800 12600
@@ -25,7 +25,7 @@ echo $point
 saveDf=$outDir/'Ortholog2testDef.'$point'.txt'
 savePickle=$outDir/'GeneDict2test.'$point'.pickle'
 cd /u/scratch/d/datduong/GOmultitask/compare_set
-python3 process_data.py $gaf1 $gaf2 $saveDf $savePickle $genePairList $point $gapSize
+python3 process_data.py $gaf1 $gaf2 $saveDf $savePickle $Pair2GenesArray $point $gapSize
 
 done
 
@@ -45,12 +45,12 @@ gaf1=$previousSource/'sgd_not_IEA.tsv' #goa_human_not_IEA
 
 pair='Yeast'
 
-genePairList=$server/$pair'PPI3ontology/'$pair'PPI2TestTrim.txt'
+Pair2GenesArray=$server/$pair'PPI3ontology/'$pair'PPI2TestTrim.txt'
 outDir=$server/$pair'PPI3ontology/qnliFormatData17'
 
 mkdir $outDir
 
-wc -l $genePairList
+wc -l $Pair2GenesArray
 
 gapSize=300
 for point in {0..12000..300} # 5350
@@ -62,7 +62,7 @@ savePickle=$outDir/'GeneDict2test.'$point'.pickle'
 
 ## use the same annotation file for both input
 cd /u/scratch/d/datduong/GOmultitask/compare_set
-python3 process_data.py $gaf1 $gaf1 $saveDf $savePickle $genePairList $point $gapSize
+python3 process_data.py $gaf1 $gaf1 $saveDf $savePickle $Pair2GenesArray $point $gapSize
 
 done
 
@@ -83,12 +83,12 @@ gaf1=$previousSource/'human_not_IEA.tsv' #goa_human_not_IEA
 
 pair='Human'
 
-genePairList=$server/$pair'PPI3ontology/'$pair'PPI2TestTrim.txt'
+Pair2GenesArray=$server/$pair'PPI3ontology/'$pair'PPI2TestTrim.txt'
 outDir=$server/$pair'PPI3ontology/qnliFormatData17'
 
 mkdir $outDir
 
-wc -l $genePairList
+wc -l $Pair2GenesArray
 
 gapSize=50
 for point in {0..5350..50} # 5350
@@ -100,7 +100,7 @@ savePickle=$outDir/'GeneDict2test.'$point'.pickle'
 
 ## use the same annotation file for both input
 cd /u/scratch/d/datduong/GOmultitask/compare_set
-python3 process_data.py $gaf1 $gaf1 $saveDf $savePickle $genePairList $point $gapSize
+python3 process_data.py $gaf1 $gaf1 $saveDf $savePickle $Pair2GenesArray $point $gapSize
 
 done
 

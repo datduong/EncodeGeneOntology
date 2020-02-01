@@ -10,7 +10,6 @@ from tempfile import TemporaryDirectory
 
 import compare_set
 
-
 root = ['GO:0008372','GO:0005575','GO:0008150','GO:0000004', 'GO:0007582', 'GO:0044699', 'GO:0003674',' GO:0005554']
 
 
@@ -51,18 +50,18 @@ But there were changes, some tags don't exists anymore. We will use original fil
 #   df.to_csv( spec+'_not_IEA.tsv',sep="\t",index=False)
 
 
-def submitJobs (gaf1,gaf2,saveDf,savePickle,genePairList,start,gapSize):
+def submitJobs (gaf1,gaf2,saveDf,savePickle,Pair2GenesArray,start,gapSize):
 
-  genePairList = pd.read_csv(genePairList,sep=" ",dtype=str) # header=None
+  Pair2GenesArray = pd.read_csv(Pair2GenesArray,sep=" ",dtype=str) # header=None
 
-  if start > genePairList.shape[0]:
+  if start > Pair2GenesArray.shape[0]:
     exit() 
     
   end = start + gapSize
-  if end > genePairList.shape[0]:
-    end = genePairList.shape[0]
+  if end > Pair2GenesArray.shape[0]:
+    end = Pair2GenesArray.shape[0]
 
-  genePairList = genePairList[start:end] ## subset
+  Pair2GenesArray = Pair2GenesArray[start:end] ## subset
 
   # gaf1 = 'goa_human_not_IEA.tsv'
   GeneGOdb1 = compare_set.gaf2dict(gaf1)
@@ -71,7 +70,7 @@ def submitJobs (gaf1,gaf2,saveDf,savePickle,genePairList,start,gapSize):
   GeneGOdb2 = compare_set.gaf2dict(gaf2)
 
   # dfPair = '/u/scratch/d/datduong/geneOrtholog/HumanMouseScore/HumanMouseOrtholog2test.txt'
-  geneDict = compare_set.GenePairDict (genePairList)
+  geneDict = compare_set.MakeDict2GenesAsPair (Pair2GenesArray)
 
   geneDict.make_pair(GeneGOdb1,GeneGOdb2)
 
