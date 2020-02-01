@@ -20,8 +20,8 @@ Consider the example below. We would expect child-parent terms to have similar v
 
 ### Libraries needed
 
-[pytorch](https://pytorch.org/)
-[pytorch-pretrained-bert](https://pypi.org/project/pytorch-pretrained-bert/)
+[pytorch](https://pytorch.org/),
+[pytorch-pretrained-bert](https://pypi.org/project/pytorch-pretrained-bert/),
 [pytorch-geometric](https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html)
 
 
