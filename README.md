@@ -33,6 +33,11 @@ All models are already trained, and ready to be used. **[You can download the em
 
 Alternatively, you can also train your own embedding. You only need to prepare your datasets into the [same format here](https://drive.google.com/drive/folders/1DITbTYg_49lpDu_RmHzY5WVTG7Acp_7B?usp=sharing)
 
-## Applications for Definition and Position encoder
+## Applications for Definition and Position encoders
+
+### Compare functions of genes and proteins
+
+### Predict new GO labels unseen in training data
+
 
 
