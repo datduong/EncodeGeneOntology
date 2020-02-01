@@ -16,5 +16,5 @@
 
 Consider the example here. 
 
-![GoTermExampl|,50%](Figure/GoTermExample.png)
+![GoTermExampl|512x397,50%](Figure/GoTermExample.png)
 
