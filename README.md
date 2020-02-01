@@ -18,6 +18,13 @@ Consider the example below. We would expect child-parent terms to have similar v
 
 ![GoTermExampl](Figure/GoTermExample.png)
 
+### Libraries needed
+
+[pytorch]
+[pytorch-pretrained-bert](https://pypi.org/project/pytorch-pretrained-bert/)
+[pytorch-geometric](https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html)
+
+
 ### Defintion encoder 
 
 We embed the [definition](https://www.ebi.ac.uk/QuickGO/term/GO:0075295) of a term. The key is that child-parent terms often have simlar defintions, so that we can embed them into comparable vectors. 
