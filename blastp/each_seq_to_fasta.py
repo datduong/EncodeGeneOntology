@@ -11,7 +11,7 @@ for category in ['bp','mf','cc']:
 
     ground_truth = {} ## create a dictionary of ground trut
     fout = open(file_type+"-"+category+".fasta","w")
-    
+
     df = pd.read_csv(file_type+"-"+category+".tsv",dtype=str,sep="\t") # Entry Gene ontology IDs Sequence  Prot Emb
     df = df.dropna()
 
