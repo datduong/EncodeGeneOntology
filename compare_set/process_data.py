@@ -18,14 +18,14 @@ main_dir = '/u/scratch/d/datduong/goAndGeneAnnotationMar2017'
 os.chdir(main_dir)
 
 ## read all GO def
-## should we use the old 2017 era go definitions ? 
+## should we use the old 2017 era go definitions ?
 GOdef = compare_set.def2dict(name="go_def_in_obo.tsv")
 GO_name_array = list(GOdef.keys())
 
-""" before we remove tags 
-["\tIEA\t", "\tNAS\t", "\tNA\t", "\tNR\t"]
-But there were changes, some tags don't exists anymore. We will use original file in the format like this goa_fly.gafNotEI 
-"""
+# """ before we remove tags
+# ["\tIEA\t", "\tNAS\t", "\tNA\t", "\tNR\t"]
+# But there were changes, some tags don't exists anymore. We will use original file in the format like this goa_fly.gafNotEI
+# """
 
 # ### !! create species annot
 # os.chdir('/u/scratch/d/datduong/goAndGeneAnnotationMar2017/gafData2017')
@@ -33,8 +33,8 @@ But there were changes, some tags don't exists anymore. We will use original fil
 #   df = pd.read_csv( "goa_"+spec+".gaf", header=None, sep="\t", comment="!", dtype='str' )
 #   # df = pd.read_csv( "gene_association."+spec+"", header=None, sep="\t", comment="!", dtype='str' )
 #   print ('table size {}'.format(df.shape))
-#   ### !!!! 
-#   """ before we remove tags 
+#   ### !!!!
+#   """ before we remove tags
 #   ["\tIEA\t", "\tNAS\t", "\tNA\t", "\tNR\t"]
 #   But there were changes, some tags don't exists anymore. We will use original file in the format like this goa_fly.gaf. We also have goa_fly.gafNotEI but it seems the spacing is off somehow. so that tab space is not detected right.
 #   """
@@ -55,8 +55,8 @@ def submitJobs (gaf1,gaf2,saveDf,savePickle,Pair2GenesArray,start,gapSize):
   Pair2GenesArray = pd.read_csv(Pair2GenesArray,sep=" ",dtype=str) # header=None
 
   if start > Pair2GenesArray.shape[0]:
-    exit() 
-    
+    exit()
+
   end = start + gapSize
   if end > Pair2GenesArray.shape[0]:
     end = Pair2GenesArray.shape[0]
@@ -79,6 +79,7 @@ def submitJobs (gaf1,gaf2,saveDf,savePickle,Pair2GenesArray,start,gapSize):
   print ('num GO pairs {}'.format(len(geneDict.LargeGOpair)))
   print ('num gene pairs {}'.format(len(geneDict.genePair)))
 
+  #### create positive/negative pairs to evaluate
   pickle.dump(geneDict,open(savePickle,'wb')) # '/u/scratch/d/datduong/geneOrtholog/HumanMouseScore/geneDict2test.pickle'
 
   # geneDict.genePair['CLP1,Pigv'][0].index

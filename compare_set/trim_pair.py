@@ -2,7 +2,9 @@
 import os,re,sys,gzip
 import pandas as pd 
 
-## extract only pairs we need to do, not all pairs in the orthologs set are needed
+
+#### extract only pairs we need to do, not all pairs in the orthologs set are needed
+#### data came from previous studies in 2017 and 2018 
 
 pair_name = 'HumanFly'
 
