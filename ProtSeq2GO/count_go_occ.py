@@ -54,9 +54,9 @@ main_dir = '/u/scratch/d/datduong/deepgo/dataExpandGoSet/train/'
 os.chdir( main_dir )
 
 sys.path.append("/u/scratch/d/datduong/GOmultitask")
-import ProtSeq2GO.protSeqLoader as protSeqLoader
+import ProtSeq2GO.ProtSeqLoader as ProtSeqLoader
 
-def GetCountQuantile (count_dict,q): 
+def GetNumObsPerQuantile (count_dict,q): 
   count = [count_dict[k] for k in count_dict] 
   quant = np.quantile(count,q) ## probably 2 of these are enough 
   return quant
@@ -65,12 +65,12 @@ for category in ['bp','mf','cc']:
   GO_counter = pickle.load(open("CountGoInTrain-"+category+".pickle","rb"))
   label_to_test = list ( GO_counter.keys() ) 
   print ('\n\ncategory {}, count {}'.format(category,len(label_to_test)))
-  quant25, quant75 = protSeqLoader.GetCountQuantile(GO_counter)
+  quant25, quant75 = ProtSeqLoader.GetNumObsPerQuantile(GO_counter)
   print ('value 25 and 75 quantiles {} {}'.format(quant25, quant75) ) 
-  print ('value 50 {}'.format(GetCountQuantile(GO_counter,[0.5])))
-  betweenQ25Q75 = protSeqLoader.IndexBetweenQ25Q75Quantile(label_to_test,GO_counter,quant25,quant75)
-  quant25 = protSeqLoader.IndexLessThanQuantile(label_to_test,GO_counter,quant25)
-  quant75 = protSeqLoader.IndexMoreThanQuantile(label_to_test,GO_counter,quant75)
+  print ('value 50 {}'.format(GetNumObsPerQuantile(GO_counter,[0.5])))
+  betweenQ25Q75 = ProtSeqLoader.IndexInRangeQuantileXY(label_to_test,GO_counter,quant25,quant75)
+  quant25 = ProtSeqLoader.IndexBelowQuantileX(label_to_test,GO_counter,quant25)
+  quant75 = ProtSeqLoader.IndexOverQuantileX(label_to_test,GO_counter,quant75)
   print ('counter 25 and 75 quantiles {} {}'.format(len(quant25), len(quant75)))
 
 

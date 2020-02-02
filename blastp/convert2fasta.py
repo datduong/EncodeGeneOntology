@@ -2,7 +2,7 @@ import pickle, os, sys, re
 import pandas as pd
 import numpy as np
 
-os.chdir('/u/scratch/d/datduong/deepgo/dataExpandGoSet/train/fold_1')
+os.chdir('/u/scratch/d/datduong/deepgo/dataExpandGoSet16Jan2020/train/fold_1')
 ## >name
 ## seq
 

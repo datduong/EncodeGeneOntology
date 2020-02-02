@@ -28,7 +28,6 @@ graph = obonet.read_obo('/local/datdb/goAndGeneAnnotationMar2017/go.obo') # http
 # encoder_setting = {'Onto2vec':'cosine.768', 'GCN':'cosine.768' } 
 # encoder_shortname = {'Onto2vec':'Onto2vec','GCN':'GCN'}
 
-
 # encoder_setting = {'BiLSTM':'cosine.bilstm768'} 
 # encoder_shortname = {'BiLSTM':'BiLSTM'}
 # encoder_setting = {'BertGOName768': 'BertFineTuneGOEmb768'  } ##
@@ -37,8 +36,11 @@ graph = obonet.read_obo('/local/datdb/goAndGeneAnnotationMar2017/go.obo') # http
 # encoder_setting = {'cosine.AveWordClsSep768.Linear768.Layer12': 'BERT' , 'cosine.Cls768.Linear768':'BERT' } ##
 # encoder_shortname = {'cosine.AveWordClsSep768.Linear768.Layer12':'BERT','cosine.Cls768.Linear768':'BERT'}
 
-encoder_setting = {'cosine.1024': 'Elmo'  } ##
-encoder_shortname = {'cosine.1024':'Elmo' }
+# encoder_setting = {'cosine768Linear768Layer11+12nnParamOpW2': 'cosine768Linear768Layer11+12nnParamOpW2'  } ##
+# encoder_shortname = {'cosine768Linear768Layer11+12nnParamOpW2':'cosine768Linear768Layer11+12nnParamOpW2' }
+
+encoder_setting = {'cosine.1024Jan26': 'cosine.1024Jan26'  } ##
+encoder_shortname = {'cosine.1024Jan26':'ELMO' }
 
 
 for encoder_name in encoder_setting: 

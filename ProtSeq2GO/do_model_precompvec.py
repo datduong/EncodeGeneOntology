@@ -37,7 +37,7 @@ import GCN.encoder.encoder_model as GCN_encoder_model
 os.chdir("/local/datdb/GOmultitask")
 
 import ProtSeq2GO.ProtSeq2GOModel as ProtSeq2GOModel
-import ProtSeq2GO.protSeqLoader as protSeqLoader
+import ProtSeq2GO.ProtSeqLoader as ProtSeqLoader
 
 import ProtSeq2GO.arg_input as arg_input
 args = arg_input.get_args()
@@ -155,9 +155,9 @@ if args.ontology is None:
 else:
   add_name = '-' + args.ontology
 
-train_loader = protSeqLoader.ProtLoader (args.data_dir, 'train'+add_name+'.tsv', full_label_name_array, MAX_SEQ_LEN, 'random', args, args.do_kmer, label_to_test)
+train_loader = ProtSeqLoader.ProtLoader4TrainDev (args.data_dir, 'train'+add_name+'.tsv', full_label_name_array, MAX_SEQ_LEN, 'random', args, args.do_kmer, label_to_test)
 
-dev_loader = protSeqLoader.ProtLoader (args.data_dir, 'dev'+add_name+'.tsv', full_label_name_array, MAX_SEQ_LEN, 'sequential', args, args.do_kmer, label_to_test)
+dev_loader = ProtSeqLoader.ProtLoader4TrainDev (args.data_dir, 'dev'+add_name+'.tsv', full_label_name_array, MAX_SEQ_LEN, 'sequential', args, args.do_kmer, label_to_test)
 
 
 ## **** make model ****
@@ -184,10 +184,10 @@ if args.w2v_emb is not None:
 ## **** load GO count dictionary data
 if args.label_counter_dict is not None:
   GO_counter = pickle.load(open(args.label_counter_dict,"rb"))
-  quant25, quant75 = protSeqLoader.GetCountQuantile(GO_counter)
-  betweenQ25Q75 = protSeqLoader.IndexBetweenQ25Q75Quantile(label_to_test,GO_counter,quant25,quant75)
-  quant25 = protSeqLoader.IndexLessThanQuantile(label_to_test,GO_counter,quant25)
-  quant75 = protSeqLoader.IndexMoreThanQuantile(label_to_test,GO_counter,quant75)
+  quant25, quant75 = ProtSeqLoader.GetNumObsPerQuantile(GO_counter)
+  betweenQ25Q75 = ProtSeqLoader.IndexInRangeQuantileXY(label_to_test,GO_counter,quant25,quant75)
+  quant25 = ProtSeqLoader.IndexBelowQuantileX(label_to_test,GO_counter,quant25)
+  quant75 = ProtSeqLoader.IndexOverQuantileX(label_to_test,GO_counter,quant75)
   
   print ('counter 25 and 75 quantiles {} {}'.format(quant25, quant75))
 
@@ -307,7 +307,7 @@ print ('\n\nload back best model based on dev set {}'.format(os.path.join(args.r
 prot2seq_model.load_state_dict( torch.load( os.path.join(args.result_folder,"best_state_dict.pytorch") ), strict=False )
 
 ## load test set
-test_loader = protSeqLoader.ProtLoader (args.data_dir, 'test'+add_name+'.tsv', full_label_name_array, MAX_SEQ_LEN, 'sequential', args, args.do_kmer, label_to_test)
+test_loader = ProtSeqLoader.ProtLoader4TrainDev (args.data_dir, 'test'+add_name+'.tsv', full_label_name_array, MAX_SEQ_LEN, 'sequential', args, args.do_kmer, label_to_test)
 print ('\non test set\n')
 prot2seq_model.do_eval(test_loader, **other_params)
 

@@ -24,8 +24,15 @@ import obonet
 # encoder_setting = {'BertGOName768': 'BertFineTuneGOEmb768'  } ##
 # encoder_shortname = {'BertGOName768':'BertFineTuneGOEmb768' }
 
-encoder_setting = {'cosine.1024': 'Elmo'  } ##
-encoder_shortname = {'cosine.1024':'Elmo' }
+# encoder_setting = {'cosine.Cls768.11+12': 'BERT'  } ##
+# encoder_shortname = {'cosine.Cls768.11+12':'BERT' }
+
+# encoder_setting = {'cosine768Linear768Layer11+12nnParamOpW2': 'cosine768Linear768Layer11+12nnParamOpW2'  } ##
+# encoder_shortname = {'cosine768Linear768Layer11+12nnParamOpW2':'cosine768Linear768Layer11+12nnParamOpW2' }
+
+
+encoder_setting = {'cosine.1024Jan26': 'cosine.1024Jan26'  } ##
+encoder_shortname = {'cosine.1024Jan26':'ELMO' }
 
 
 for encoder_name in encoder_setting: 

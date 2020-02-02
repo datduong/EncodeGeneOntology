@@ -35,7 +35,7 @@ for file_type in random_go_analysis_mf random_go_analysis_cc random_go_analysis_
 
   ## check the Average-layer if not use CLS 
   
-  CUDA_VISIBLE_DEVICES=5 python3 $server/GOmultitask/BERT/encoder/do_model.py --main_dir $work_dir --qnli_dir $data_dir --batch_size_label 128 --bert_model $bert_model --pregenerated_data $pregenerated_data --bert_output_dir $bert_output_dir --result_folder $result_folder --epoch 0 --num_train_epochs_entailment 0 --use_cuda --metric_option $metric_option --def_emb_dim $def_emb_dim --reduce_cls_vec --model_load $model_load --write_score $write_score --test_file $test_file > $result_folder/test1.log
+  CUDA_VISIBLE_DEVICES=5 python3 $server/GOmultitask/BERT/encoder/do_model.py --main_dir $work_dir --qnli_dir $data_dir --batch_size_aa_go 128 --bert_model $bert_model --pregenerated_data $pregenerated_data --bert_output_dir $bert_output_dir --result_folder $result_folder --epoch 0 --num_train_epochs_entailment 0 --use_cuda --metric_option $metric_option --def_emb_dim $def_emb_dim --reduce_cls_vec --model_load $model_load --write_score $write_score --test_file $test_file > $result_folder/test1.log
 
   paste $test_file $write_score > $result_folder/$file_type'.BERT.txt' ## append columns 
   rm -f $write_score

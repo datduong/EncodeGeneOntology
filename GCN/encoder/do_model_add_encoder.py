@@ -145,13 +145,13 @@ bert_config = BertConfig( os.path.join(args.bert_model,"bert_config.json") )
 
 other = {'metric_option':args.metric_option}
 bert_lm_sentence = BertForPreTraining.from_pretrained(args.bert_model)  
-bert_lm_ent_model = BERT_encoder_model.encoder_model (bert_lm_sentence, metric_pass_to_joint_model[args.metric_option] , args, tokenizer, **other )
+BertMaskLMCosineSimJointModel = BERT_encoder_model.encoder_model (bert_lm_sentence, metric_pass_to_joint_model[args.metric_option] , args, tokenizer, **other )
 
 
 
 ## make GCN model
 
-model = encoder_model.encoder_with_bert ( args, bert_lm_ent_model, metric_pass_to_joint_model[args.metric_option], **other_params )
+model = encoder_model.encoder_with_bert ( args, BertMaskLMCosineSimJointModel, metric_pass_to_joint_model[args.metric_option], **other_params )
 
 
 print ('\nmodel is\n')

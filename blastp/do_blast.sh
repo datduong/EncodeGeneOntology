@@ -7,7 +7,7 @@ for category in cc bp mf ; do
 done
 
 
-## COMMENT do psiblast and blast 
+#### do psiblast and blast 
 #!/bin/bash
 . /u/local/Modules/default/init/modules.sh
 where_data='/u/scratch/d/datduong/deepgo/data/train/fold_1'
@@ -20,19 +20,19 @@ for category in mf ; do
 
   file_to_test=$set_type'-'$category'.fasta'
 
-  ## blast
+  ##!! blast
   fout2=$set_type'-'$category'.blast.txt'
   /u/flashscratch/d/datduong/ncbi-blast-2.8.1+/bin/blastp -db train-$category.fasta -query $file_to_test -outfmt 10 -evalue 10 -out $result_dir/$fout2
   sed -i 's/Search has CONVERGED!//g' $result_dir/$fout2
 
-  ## psiblast
+  ##!! psiblast
   fout1=$set_type'-'$category'.psiblast.txt'
   /u/flashscratch/d/datduong/ncbi-blast-2.8.1+/bin/psiblast -num_threads 4 -db train-$category.fasta -query $file_to_test -num_iterations 3 -outfmt 10 -evalue 10 -out $result_dir/$fout1 
-  ## MUST REMOVE THE SINGLE LINE "Search has CONVERGED!"
+  ##!! MUST REMOVE THE SINGLE LINE "Search has CONVERGED!"
   sed -i 's/Search has CONVERGED!//g' $result_dir/$fout1
 done 
 
-## COMMENT tally outcome of blast and psiblast
+#### tally outcome of blast and psiblast
 #!/bin/bash
 . /u/local/Modules/default/init/modules.sh
 module load python/3.7.2
@@ -52,16 +52,10 @@ for evalpoint in '1' '10' '100' ; do # '1' '0.1' '0.01' '0.001'
   done
 done
 
-# # example Q92543
-# Q92543  GO:0005737;GO:0044424;GO:0044464 ## true 
-# ## prediction 
-# {'GO:0043226': 1.0, 'GO:0005737': 0.8487141278567016, 'GO:0005773': 0.8487141278567016, 'GO:0044424': 1.0, 'GO:0043229': 1.0, 'GO:0043231': 1.0, 'GO:0044464': 1.0, 'GO:0005768': 0.8487141278567016, 'GO:0043227': 1.0, 'GO:0005783': 0.2043133621577105, 'GO:0044444': 1.0}
 
-# O14200 ## best match 1 
-# O14200  GO:0005768;GO:0005773;GO:0043231;GO:0043229;GO:0043227;GO:0043226;GO:0044444;GO:0005737;GO:0044424;GO:0044464
 
-# O74444 ## best match 2
-# O74444  GO:0005783;GO:0043231;GO:0043229;GO:0043227;GO:0043226;GO:0044444;GO:0044424;GO:0044464
+
+
 
 
 ## !!! combine blast with BERT/biLSTM/GCN

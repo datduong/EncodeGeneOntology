@@ -1,7 +1,7 @@
 
 import os,sys,re,pickle
 
-## convert GO vector in gensim format into dictionary
+#### convert GO vector text file into dictionary
 
 os.chdir("/local/datdb/deepgo/data/BertAsServiceVector")
 

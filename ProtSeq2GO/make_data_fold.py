@@ -5,8 +5,7 @@ import os,sys,re,pickle,gzip
 
 ## original github gives only train/test set.
 ## in their keras code, they split the train into 2 set.
-
-# split using int(n * 0.8)
+#### split using int(n * 0.8)
 
 def train_validate_test_split(df, train_percent=.80, seed=1234):
   np.random.seed(seed)

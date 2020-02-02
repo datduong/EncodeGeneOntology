@@ -10,7 +10,7 @@ import evaluation_metric
 ## have to run psiblast to get seq. similarity
 ## then we process the file.
 
-def text2dict (filename):
+def MakeGroundTruthText2Dict (filename):
   prot_annot = {}
   df = pd.read_csv(filename,sep="\t")
   for index, row in df.iterrows():
@@ -19,7 +19,7 @@ def text2dict (filename):
 
 def load_true_data (filename,label_lookup):
   # @label_lookup is lookup dict of all label tested
-  true_label, prot_name = text2dict(filename)
+  true_label, prot_name = MakeGroundTruthText2Dict(filename)
   ground_truth = np.zeros([len(true_label),len(label_lookup)])
   for index,name in enumerate(prot_name):
     where1 = np.array ( [label_lookup[n] for n in true_label[name]] ) # lookup the column of labels
@@ -64,12 +64,13 @@ def order_go_score (score,label_lookup): # @score is dict {go1:0.5, go2:0.4}
   out[where_found] = score_found
   return out
 
-def submitJobs (main_dir, data_dir, blast_result_dir, what_set, ontology_type, all_test_label) :
+def submitJobs (main_dir, data_dir, blast_result_dir, what_set, ontology_type, all_test_label,add_name='none') :
 
-  ## blast and psi-blast will have the same format.
+  if add_name=='none':
+    add_name = ""
 
+  #### blast and psi-blast will have the same format.
   ## @all_test_label is file of all labels to be tested, adding this so that we return a matrix num_ob x num_label
-
   os.chdir(main_dir)
 
   ## labels to be tested
@@ -77,7 +78,6 @@ def submitJobs (main_dir, data_dir, blast_result_dir, what_set, ontology_type, a
   print ('\nsort labels to be tested, we do the same when using NN model.')
   all_test_label = sorted ( list(all_test_label[0]) )
   label_lookup = {value:index for index,value in enumerate(all_test_label)}
-
 
   ## prot annotation train set, will be used later to infer assignment in testset
   ## can only predict what is found in train set if we use blast
@@ -87,15 +87,16 @@ def submitJobs (main_dir, data_dir, blast_result_dir, what_set, ontology_type, a
   #   prot_annot = pickle.load ( open (data_dir+'train-'+ontology_type+'.TrueLabel.pickle','rb') )
   # except:
   # train-mf.tsv
-  prot_annot, prot_name_train = text2dict(data_dir+'train-'+ontology_type+'.tsv')
+
+  prot_annot, prot_name_train = MakeGroundTruthText2Dict(data_dir+'train-'+ontology_type+add_name+'.tsv')
   print ('\nnum of prots in train data {}\n'.format(len(prot_annot)))
 
   print ('load go annotation for test data')
   ## COMMENT get true labels
   ## COMMENT 'test-'+ontology_type+'.tsv' has different ordering than 'test-'+ontology_type+'-input.tsv'
-  print ('test file name {}'.format(data_dir+'test-'+ontology_type+'.tsv'))
+  print ('test file name {}'.format(data_dir+'test-'+ontology_type+add_name+'.tsv')) ##!!##!!
 
-  ground_truth, prot_name_test = load_true_data (data_dir+'test-'+ontology_type+'.tsv',label_lookup)
+  ground_truth, prot_name_test = load_true_data (data_dir+'test-'+ontology_type+add_name+'.tsv',label_lookup) ##!!##!!
   print ('\nnum of prots in test data {}\n'.format(len(prot_name_test)))
 
   print ('\nread psiblast result')
@@ -175,7 +176,7 @@ if len(sys.argv)<1: ## run script
 	print("Usage: \n")
 	sys.exit(1)
 else:
-	submitJobs ( sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6] )
+	submitJobs ( sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6], sys.argv[7] )
 
 
 

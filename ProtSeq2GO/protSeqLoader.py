@@ -11,8 +11,8 @@ from tqdm import tqdm, trange
 
 from pytorch_pretrained_bert.tokenization import BertTokenizer, load_vocab, whitespace_tokenize
 
-sys.path.append('/local/datdb/ProteinEmbMethodGithub/protein-sequence-embedding-iclr2019/')
-from src.alphabets import Uniprot21
+# sys.path.append('/local/datdb/ProteinEmbMethodGithub/protein-sequence-embedding-iclr2019/')
+# from src.alphabets import Uniprot21
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +114,7 @@ class ProtProcessor(DataProcessor):
 
 
 MAX_SEQ_LEN_KMER = 1000
-KMER_MAP={}
+KMER_MAP={} ####
 counter = 1 ## start at 1, so that 0 is padding
 aa = 'ARNDCQEGHILKMFPSTWYV' ## do not include (B, O, J, U, X, Z) ... based on deepgo procedure
 for a1 in aa:
@@ -155,21 +155,18 @@ def prot2kmer(aa_seq): ## 20^3 is 8000 kmer, add 1 for padding
 
 def prot2feature(examples, full_label_name_array, max_seq_length, do_kmer, subset_name_array, has_ppi_emb):
 
-  alphabet = Uniprot21() ## convert string to indexing.
+  # alphabet = Uniprot21() ## convert string to indexing.
   # >>> alphabet.encode(b'ARNDCQEGHILKMFPSTWYVXOUBZ')
   # array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16,
   #       17, 18, 19, 20, 11,  4, 20, 20], dtype=uint8)
-
   # output is batch x max_len x dim when use @alphabet encoder
   # masking will be needed
-
 
   if subset_name_array is not None:
     print ('\nmodel runs only on subset of labels, so make 1-hot in subset of GO database, not all GO terms\n')
     full_label_name_array = subset_name_array
 
   label_map = {label : i for i, label in enumerate(full_label_name_array)}
-
   features = []
 
   for (ex_index, example) in tqdm(enumerate(examples)):
@@ -180,10 +177,11 @@ def prot2feature(examples, full_label_name_array, max_seq_length, do_kmer, subse
       input_id, input_len = prot2kmer (example.aa_seq)
 
     else:
-      aa_seq = example.aa_seq[ 1:(len(example.aa_seq)-1) ]
-      input_id = alphabet.encode(aa_seq.encode('utf-8'))
-      input_id = list(input_id.astype(int))
-      input_len = len(input_id)
+      print ('\n\n\n!!! must turn on do_kmer in command line.')
+      # aa_seq = example.aa_seq[ 1:(len(example.aa_seq)-1) ]
+      # input_id = alphabet.encode(aa_seq.encode('utf-8'))
+      # input_id = list(input_id.astype(int))
+      # input_len = len(input_id)
 
     label = example.label.split(";") ## split 0016021;0031224;0044425
     label_id = np.zeros( len(label_map) )
@@ -223,7 +221,7 @@ def prot2feature(examples, full_label_name_array, max_seq_length, do_kmer, subse
   return features
 
 
-def makeProtLoader (train_features,batch_size,sampler,has_ppi_emb) :
+def MakeProtDataLoader (train_features,batch_size,sampler,has_ppi_emb) :
 
   # must sort labels as they appear in @label_index_map
 
@@ -255,63 +253,63 @@ def makeProtLoader (train_features,batch_size,sampler,has_ppi_emb) :
   return train_dataloader, all_name_ids
 
 
-def ProtLoader (data_dir, data_type_name, full_label_name_array, max_seq_length, sampler, args, do_kmer, subset_name_array):
+def ProtLoader4TrainDev (data_dir, data_type_name, full_label_name_array, max_seq_length, sampler, args, do_kmer, subset_name_array):
+
+  ##!!##!! @data_type_name can be test-set, we can in fact use same function during testing
 
   InputReader = ProtProcessor()
-
   if 'train' in data_type_name:
     examples = InputReader.get_train_examples(data_dir,args.has_ppi_emb,data_type_name)
-
   else:
     examples = InputReader.get_dev_examples(data_dir,args.has_ppi_emb,data_type_name)
 
   features = prot2feature(examples, full_label_name_array, max_seq_length, do_kmer, subset_name_array,args.has_ppi_emb)
-  dataloader, prot_name = makeProtLoader (features, batch_size=args.batch_size_aa_go, sampler=sampler, has_ppi_emb=args.has_ppi_emb)
+  dataloader, prot_name = MakeProtDataLoader (features, batch_size=args.batch_size_aa_go, sampler=sampler, has_ppi_emb=args.has_ppi_emb)
   return dataloader
 
 
-def ProtLoaderAnyFile (file_name, full_label_name_array, max_seq_length, sampler, args, do_kmer, subset_name_array):
+def ProtLoader4AnyInputText (file_name, full_label_name_array, max_seq_length, sampler, args, do_kmer, subset_name_array):
   InputReader = ProtProcessor()
   examples = InputReader.get_test_examples(file_name, args.has_ppi_emb) ##!! load any file
   features = prot2feature(examples, full_label_name_array, max_seq_length, do_kmer, subset_name_array,args.has_ppi_emb)
-  dataloader, prot_name = makeProtLoader (features, batch_size=args.batch_size_aa_go, sampler=sampler, has_ppi_emb=args.has_ppi_emb)
+  dataloader, prot_name = MakeProtDataLoader (features, batch_size=args.batch_size_aa_go, sampler=sampler, has_ppi_emb=args.has_ppi_emb)
   return dataloader
 
-### !!!!!
-### !!!!!
 
-# count go terms 
-def IndexLessThanQuantile (label_to_test,count_dict,quant) : 
+
+#### Get frequency and label index based on the percent quantile
+
+def IndexBelowQuantileX (label_to_test,count_dict,quant) :
   index2extract = []
-  for index, label in enumerate (label_to_test): 
+  for index, label in enumerate (label_to_test):
     if label not in count_dict: ## label occur in whole data, but it doesn't occur in train data
       index2extract.append(index) ## see term GO:0004812
       continue
-    if count_dict[label] < quant: 
+    if count_dict[label] < quant:
       index2extract.append(index)
   return index2extract
 
-def IndexMoreThanQuantile (label_to_test,count_dict,quant) : 
+def IndexOverQuantileX (label_to_test,count_dict,quant) :
   index2extract = []
-  for index, label in enumerate (label_to_test): 
+  for index, label in enumerate (label_to_test):
     if label not in count_dict: ## label occur in whole data, but it doesn't occur in train data
       continue ## count is consider 0, so ... not greater than 75th quant
-    if count_dict[label] > quant: 
+    if count_dict[label] > quant:
       index2extract.append(index)
   return index2extract
 
-def IndexBetweenQ25Q75Quantile (label_to_test,count_dict,quant1,quant2) : 
+def IndexInRangeQuantileXY (label_to_test,count_dict,quant1,quant2) :
   index2extract = []
-  for index, label in enumerate (label_to_test): 
+  for index, label in enumerate (label_to_test):
     if label not in count_dict: ## label occur in whole data, but it doesn't occur in train data
       continue
-    if (count_dict[label] >= quant1) and (count_dict[label] <= quant2): 
+    if (count_dict[label] >= quant1) and (count_dict[label] <= quant2):
       index2extract.append(index)
   return index2extract
 
-def GetCountQuantile (count_dict): 
-  count = [count_dict[k] for k in count_dict] 
-  quant = np.quantile(count,q=[0.25,0.75]) ## probably 2 of these are enough 
+def GetNumObsPerQuantile (count_dict):
+  count = [count_dict[k] for k in count_dict]
+  quant = np.quantile(count,q=[0.25,0.75]) ## probably 2 of these are enough
   return quant
 
 

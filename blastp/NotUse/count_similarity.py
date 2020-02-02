@@ -50,6 +50,4 @@ y = pickle.load(open(where_train+"/seq-seq-prediction_metaGO.pickle","rb"))
 
 w = pickle.load(open("/u/flashscratch/d/datduong/goAndGeneAnnotationDec2018/benchmark_cofactor_method/1079.testing/gold_standard/test_gene_annot.pickle","rb"))
 
-gene_name_test
-P46779
 

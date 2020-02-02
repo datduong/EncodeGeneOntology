@@ -173,23 +173,23 @@ print ("\n\nnum_observation_in_train{}".format(num_observation_in_train))
 num_train_optim_steps_entailment = int( np.ceil ( np.ceil ( num_observation_in_train / args.batch_size_aa_go ) / args.gradient_accumulation_steps) ) * args.num_train_epochs_entailment + args.batch_size_aa_go
 
 ## init joint model
-bert_lm_ent_model = encoder_model.encoder_model (bert_lm_sentence, metric_pass_to_joint_model[args.metric_option] , args, tokenizer, **other )
+BertMaskLMCosineSimJointModel = encoder_model.encoder_model (bert_lm_sentence, metric_pass_to_joint_model[args.metric_option] , args, tokenizer, **other )
 
 if args.fp16:
   if args.metric_option == 'cosine': 
     print ('\n\ncosine has problem with fp16, do not use fp16 for cosine distance\n\n')
     exit()
-  bert_lm_ent_model.half()
+  BertMaskLMCosineSimJointModel.half()
 
 if args.use_cuda:
-  bert_lm_ent_model.cuda()
+  BertMaskLMCosineSimJointModel.cuda()
 
 if args.model_load is not None :
-  bert_lm_ent_model.load_state_dict(torch.load(args.model_load))
+  BertMaskLMCosineSimJointModel.load_state_dict(torch.load(args.model_load))
 
-print (bert_lm_ent_model)
+print (BertMaskLMCosineSimJointModel)
 
-## **** train
+#### train model
 
 print ("\n")
 print (args)
@@ -203,24 +203,24 @@ for repeat in range( args.epoch ):
 
   if args.update_bert and (repeat != args.epoch-1):## don't do this for last epoch
     if repeat==1: ## do 0 [1] 2 (so should run 3 round) 
-      bert_lm_ent_model.update_bert(num_data_epochs, num_train_optim_steps_bert)  # here we run LM mask model
-      num_train_epochs_bert = 1 ## do only once on every other run
+      BertMaskLMCosineSimJointModel.update_bert(num_data_epochs, num_train_optim_steps_bert)  # here we run LM mask model
+      num_train_epochs_bert = 1 ## do only once on every other run ?
       torch.cuda.empty_cache()
       # save
-      # torch.save(bert_lm_ent_model.state_dict(), os.path.join(args.result_folder,"best_state_dict"+name_add_on+".pytorch"))
+      # torch.save(BertMaskLMCosineSimJointModel.state_dict(), os.path.join(args.result_folder,"best_state_dict"+name_add_on+".pytorch"))
 
   if repeat == (args.epoch-1): ## run twice longer 
-    bert_lm_ent_model.args.num_train_epochs_entailment = args.num_train_epochs_entailment*2
+    BertMaskLMCosineSimJointModel.args.num_train_epochs_entailment = args.num_train_epochs_entailment*2
     ## need to redefine the below
     num_train_optim_steps_entailment = int( np.ceil ( np.ceil ( num_observation_in_train / args.batch_size_aa_go ) / args.gradient_accumulation_steps) ) * (args.num_train_epochs_entailment*2) + args.batch_size_aa_go
 
-  tr_loss = bert_lm_ent_model.train_label(train_label_dataloader,
+  tr_loss = BertMaskLMCosineSimJointModel.train_label(train_label_dataloader,
                                           num_train_optim_steps_entailment,
                                           dev_dataloader=dev_label_dataloader)
 
   torch.cuda.empty_cache()
   # save
-  torch.save(bert_lm_ent_model.state_dict(), os.path.join(args.result_folder,"last_state_dict"+name_add_on+".pytorch"))
+  torch.save(BertMaskLMCosineSimJointModel.state_dict(), os.path.join(args.result_folder,"last_state_dict"+name_add_on+".pytorch"))
 
 
 
@@ -232,12 +232,12 @@ if args.write_vector:
   examples = AllLabelDesc.get_examples( args.label_desc_dir ) ## file @label_desc_dir is tab delim 
   examples = data_loader.LabelDescription2FeatureInput ( examples , MAX_SEQ_LEN, tokenizer )
   AllLabelLoader, GO_names = data_loader.LabelLoaderToProduceVecOutput(examples,64) ## should be able to handle 64 labels at once 
-  label_emb = bert_lm_ent_model.write_label_vector( AllLabelLoader,os.path.join(args.result_folder,"label_vector.txt"), GO_names )
+  label_emb = BertMaskLMCosineSimJointModel.write_label_vector( AllLabelLoader,os.path.join(args.result_folder,"label_vector.txt"), GO_names )
 
 
 
 print ('\n\nload back best model')
-bert_lm_ent_model.load_state_dict( torch.load( os.path.join(args.model_load) ) )
+BertMaskLMCosineSimJointModel.load_state_dict( torch.load( os.path.join(args.model_load) ) )
 
 """ get dev or test set  """
 
@@ -260,7 +260,7 @@ print ('\ntest_label_examples {}'.format(len(dev_label_examples))) # dev_label_e
 
 
 print ('\n\neval on test')
-result, preds = bert_lm_ent_model.eval_label(dev_label_dataloader)
+result, preds = BertMaskLMCosineSimJointModel.eval_label(dev_label_dataloader)
 
 if args.write_score is not None: 
   print ('\n\nscore file name {}'.format(args.write_score))
