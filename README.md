@@ -27,11 +27,11 @@ Consider the example below. We would expect child-parent terms to have similar v
 [pytorch-geometric](https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html)
 
 
-### How to use Definition and Position encoder 
+### How to use Definition and Position encoder?
 
 We embed the [definition](https://www.ebi.ac.uk/QuickGO/term/GO:0075295) of a term. The key is that child-parent terms often have simlar defintions, so that we can embed them into comparable vectors. 
 
-All models are already trained, and ready to be used. **[You can download the embeddings here.](https://drive.google.com/drive/folders/129UObLlhnp0RK6MQAS7waUF-k4SuGV-u?usp=sharing)** 
+All models are already trained, and ready to be used. **[You can download the embeddings here.](https://drive.google.com/drive/folders/129UObLlhnp0RK6MQAS7waUF-k4SuGV-u?usp=sharing)** There are different types of embeddings, you can try any of these embeddings. 
 
 You can also use our trained model to produce vectors for any GO definitions, [see example script here](https://github.com/datduong/EncodeGeneOntology/blob/master/DemoScript/TrainWriteGoDef.sh). You will have to prepare the [input in this format here](https://drive.google.com/drive/u/1/folders/1DITbTYg_49lpDu_RmHzY5WVTG7Acp_7B). 
 
