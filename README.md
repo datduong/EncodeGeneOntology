@@ -29,7 +29,7 @@ Consider the example below. We would expect child-parent terms to have similar v
 
 ### How to use Definition and Position encoder?
 
-We embed the [definition or position](https://www.ebi.ac.uk/QuickGO/term/GO:0075295) of a term. The key is that child-parent terms often have simlar defintions or positions in the GO tree, so that we can embed them into comparable vectors. 
+We embed the [definition or position](https://www.ebi.ac.uk/QuickGO/term/GO:0075295) of a term. The key idea is that child-parent terms often have simlar defintions or positions in the GO tree, so that we can embed them into comparable vectors. 
 
 All models are already trained, and ready to be used. **[You can download the embeddings here.](https://drive.google.com/drive/folders/129UObLlhnp0RK6MQAS7waUF-k4SuGV-u?usp=sharing)** There are different types of embeddings, you can try any of these embeddings. 
 
