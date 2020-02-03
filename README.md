@@ -1,7 +1,7 @@
 
 # Encode Gene Ontology terms using their definitions or positions on the GO tree.
 
-####[This is our paper.](https://www.biorxiv.org/content/10.1101/765644v4)
+#### [This is our paper.](https://www.biorxiv.org/content/10.1101/765644v4)
 
 ## The methods applied are: 
 
