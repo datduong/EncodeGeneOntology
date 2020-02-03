@@ -33,6 +33,8 @@ We embed the [definition](https://www.ebi.ac.uk/QuickGO/term/GO:0075295) of a te
 
 All models are already trained, and ready to be used. **[You can download the embeddings here.](https://drive.google.com/drive/folders/129UObLlhnp0RK6MQAS7waUF-k4SuGV-u?usp=sharing)** 
 
+You can also use our trained model to produce vectors for any GO definitions, [see example script here].
+
 Alternatively, you can also train your own embedding. You only need to prepare your datasets into the [same format here](https://drive.google.com/drive/folders/1DITbTYg_49lpDu_RmHzY5WVTG7Acp_7B?usp=sharing)
 
 
