@@ -35,7 +35,7 @@ All models are already trained, and ready to be used. **[You can download the em
 
 You can also use our trained model to produce vectors for any GO definitions, [see example script here](https://github.com/datduong/EncodeGeneOntology/blob/master/DemoScript/TrainWriteGoDef.sh). You will have to prepare the [input in this format here](https://drive.google.com/drive/u/1/folders/1DITbTYg_49lpDu_RmHzY5WVTG7Acp_7B). 
 
-Alternatively, you can also train your own embedding. You only need to prepare your datasets into the [same format here](https://drive.google.com/drive/folders/1DITbTYg_49lpDu_RmHzY5WVTG7Acp_7B?usp=sharing)
+Alternatively, you can also train your own embedding by [following the same example script](https://github.com/datduong/EncodeGeneOntology/blob/master/DemoScript/TrainWriteGoDef.sh). You only need to prepare your datasets into the [same format here](https://drive.google.com/drive/folders/1DITbTYg_49lpDu_RmHzY5WVTG7Acp_7B?usp=sharing)
 
 
 ## Applications for Definition and Position encoders
