@@ -39,7 +39,7 @@ Alternatively, you can also train your own embedding. You only need to prepare y
 ### Compare functions of proteins
 
 Almost every protein is annotated by a set of GO terms, for example see the [Uniprot database](https://www.uniprot.org/uniprot/?query=*&fil=organism%3A%22Homo+sapiens+%28Human%29+%5B9606%5D%22+AND+reviewed%3Ayes). 
-Once you can express each GO term as a vector, then for any 2 proteins, you can compare the sets of terms annotating them. We used the Best-Match Average metric to compare 2 sets; however, there other options to explore. 
+Once you can express each GO term as a vector, then for any 2 proteins, you can compare the sets of terms annotating them. We used the Best-Match Average metric to compare 2 sets; however, there other options to explore. **[Our example to compare 2 proteins is here.](https://github.com/datduong/EncodeGeneOntology/blob/master/compare_set/FrontEndSoftware/Compare2Set.py)**
 
 ### Predict GO labels based on protein sequences
 
