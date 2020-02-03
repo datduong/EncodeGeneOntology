@@ -38,6 +38,8 @@ Alternatively, you can also train your own embedding. You only need to prepare y
 
 ### Compare functions of genes and proteins
 
+Once you can express each GO term as a vector, then for any 2 proteins, you can compare the sets of terms annotating them. We used the Best-Match Average metric to compare 2 sets; however, there other options to explore. 
+
 ### Predict new GO labels unseen in training data
 
 
