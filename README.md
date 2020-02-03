@@ -1,7 +1,9 @@
 
 # Encode Gene Ontology terms using their definitions or positions on the GO tree.
 
-## The methods applied are: 
+### [This is our paper.](https://www.biorxiv.org/content/10.1101/765644v4)
+
+## We apply the following methods to embed GO terms: 
 
 * **Defintion encoder**
   1. BiLSTM 
@@ -31,6 +33,9 @@ We embed the [definition](https://www.ebi.ac.uk/QuickGO/term/GO:0075295) of a te
 
 All models are already trained, and ready to be used. **[You can download the embeddings here.](https://drive.google.com/drive/folders/129UObLlhnp0RK6MQAS7waUF-k4SuGV-u?usp=sharing)** 
 
+You can also use our trained model to produce vectors for any GO definitions, [see example script here](). You will have to prepare the [input in this format here](). 
+
+
 Alternatively, you can also train your own embedding. You only need to prepare your datasets into the [same format here](https://drive.google.com/drive/folders/1DITbTYg_49lpDu_RmHzY5WVTG7Acp_7B?usp=sharing)
 
 
@@ -39,7 +44,7 @@ Alternatively, you can also train your own embedding. You only need to prepare y
 ### Compare functions of proteins
 
 Almost every protein is annotated by a set of GO terms, for example see the [Uniprot database](https://www.uniprot.org/uniprot/?query=*&fil=organism%3A%22Homo+sapiens+%28Human%29+%5B9606%5D%22+AND+reviewed%3Ayes). 
-Once you can express each GO term as a vector, then for any 2 proteins, you can compare the sets of terms annotating them. We used the Best-Match Average metric to compare 2 sets; however, there other options to explore. 
+Once you can express each GO term as a vector, then for any 2 proteins, you can compare the sets of terms annotating them. We used the Best-Match Average metric to compare 2 sets; however, there other options to explore. **[Our example to compare 2 proteins is here.](https://github.com/datduong/EncodeGeneOntology/blob/master/compare_set/FrontEndSoftware/Compare2Set.py)**
 
 ### Predict GO labels based on protein sequences
 
