@@ -31,7 +31,7 @@ Consider the example below. We would expect child-parent terms to have similar v
 
 We embed the [definition or position](https://www.ebi.ac.uk/QuickGO/term/GO:0075295) of a term. The key idea is that child-parent terms often have simlar defintions or positions in the GO tree, so that we can embed them into comparable vectors. 
 
-All models are already trained, and ready to be used. **[You can download the embeddings here.](https://drive.google.com/drive/folders/129UObLlhnp0RK6MQAS7waUF-k4SuGV-u?usp=sharing)** There are different types of embeddings, you can try any of these embeddings. 
+All models are already trained, and ready to be used. **[You can download the embeddings here.](https://drive.google.com/drive/folders/129UObLlhnp0RK6MQAS7waUF-k4SuGV-u?usp=sharing)** There are different types of embeddings, you can try any of these embeddings. For example, [download these files](https://drive.google.com/drive/u/1/folders/1xYLoO1PxQfAceCF-tTeDeWliEjoH8Hil) if you want to use the BiLSTM embedding for Task 1 and 2 discussed in our paper. 
 
 You can also use our trained model to produce vectors for any GO definitions, **[see example script here](https://github.com/datduong/EncodeGeneOntology/blob/master/DemoScript/TrainWriteGoDef.sh)**. You will have to prepare the **[go.obo definition input in this format here](https://drive.google.com/drive/u/1/folders/1-nmtdjG8yNiNi2dyb_nFZlYmPetiBqVV)**. 
 
