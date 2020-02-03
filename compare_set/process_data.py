@@ -70,7 +70,7 @@ def submitJobs (gaf1,gaf2,saveDf,savePickle,Pair2GenesArray,start,gapSize):
   GeneGOdb2 = compare_set.gaf2dict(gaf2)
 
   # dfPair = '/u/scratch/d/datduong/geneOrtholog/HumanMouseScore/HumanMouseOrtholog2test.txt'
-  geneDict = compare_set.MakeDict2GenesAsPair (Pair2GenesArray)
+  geneDict = compare_set.Object2Compare2Set (Pair2GenesArray)
 
   geneDict.make_pair(GeneGOdb1,GeneGOdb2)
 

@@ -39,14 +39,14 @@ def hausdorff_distance (score): # @score is matrix ####
   ## compute the distance for both gene1->gene2 and also gene2->gene1
   ## !! WORKS ONLY IF METRIC IS SYMMETRIC TERM1 VS TERM2
   ## in our case, symmetric because cosine or max(A-->B , B-->A)
-	rowMax = np.amax(score,1) ## max for each row ... same as max_b s(a,b) 
-	rowMean = np.mean(rowMax) ## mean_a max_b s(a,b)
-	colMax = np.amax(score,0) ## max for each col
-	colMean = np.mean(colMax)
-	return np.min([rowMean,colMean]) , np.mean([rowMean,colMean])  # hausdorff distance using both min/mean
+	RowMax = np.amax(score,1) ## max for each row ... same as max_b s(a,b) 
+	RowMean = np.mean(RowMax) ## mean_a max_b s(a,b)
+	ColMax = np.amax(score,0) ## max for each col
+	ColMean = np.mean(ColMax)
+	return np.min([RowMean,ColMean]) , np.mean([RowMean,ColMean])  # hausdorff distance using both min/mean
 
 
-class Make2GenesAsPair () :
+class MakeSampleFromPair () :
   # takes 2 genes, create lookup extraction index
   def __init__(self,gene1,gene2,GeneGOdb1,GeneGOdb2):
     self.gene1 = gene1
@@ -65,7 +65,7 @@ class Make2GenesAsPair () :
         self.GOpair.append ( i + "," + j )
 
 
-class MakeDict2GenesAsPair ():
+class Object2Compare2Set ():
   def __init__(self,Pair2GenesArray): ## gene pairs to compare
     # we will read the Pair2GenesArray outside of this class
     # self.Pair2GenesArray = pd.read_csv(Pair2GenesArray,sep=" ",dtype=str,header=None)
@@ -74,8 +74,8 @@ class MakeDict2GenesAsPair ():
 
   def make_pair (self,GeneGOdb1,GeneGOdb2):
 
-    geneSet1 = list (self.Pair2GenesArray['gene1'])
-    geneSet2 = list (self.Pair2GenesArray['gene2'])
+    Go4Sample1 = list (self.Pair2GenesArray['gene1'])
+    Go4Sample2 = list (self.Pair2GenesArray['gene2'])
     label = list (self.Pair2GenesArray['label'])
 
     self.genePair = {}
@@ -83,20 +83,20 @@ class MakeDict2GenesAsPair ():
 
     for index in tqdm ( range (self.Pair2GenesArray.shape[0]) ) :
 
-      if (geneSet1[index] not in GeneGOdb1) or (geneSet2[index] not in GeneGOdb2):
-        print ('skip {} , {}'.format(geneSet1[index], geneSet2[index]))
+      if (Go4Sample1[index] not in GeneGOdb1) or (Go4Sample2[index] not in GeneGOdb2):
+        print ('skip {} , {}'.format(Go4Sample1[index], Go4Sample2[index]))
         continue
 
-      thisPair = Make2GenesAsPair (geneSet1[index],geneSet2[index],GeneGOdb1,GeneGOdb2) ## create gene pair object
-      self.genePair[ geneSet1[index]+","+geneSet2[index] ] = [ thisPair, label[index] ] ## add to list that we have seen
+      one_sample = MakeSampleFromPair (Go4Sample1[index],Go4Sample2[index],GeneGOdb1,GeneGOdb2) ## create gene pair object
+      self.genePair[ Go4Sample1[index]+","+Go4Sample2[index] ] = [ one_sample, label[index] ] ## add to list that we have seen
 
-      for p in thisPair.GOpair: ## GO pairs for these 2 genes
+      for p in one_sample.GOpair: ## GO pairs for these 2 genes
         if p not in self.LargeGOpair:
           self.LargeGOpair[p] = 0 ## we will put score here later. for now, put 0
 
   def get_index (self):
-    for thisPair in self.genePair: # has object @pair and @label
-      self.genePair[thisPair][0].get_index( self.LargeGOpair ) ## now, each GOPair will have a set of index to extract
+    for one_sample in self.genePair: # has object @pair and @label
+      self.genePair[one_sample][0].get_index( self.LargeGOpair ) ## now, each GOPair will have a set of index to extract
 
   def write_go_pairs(self,GOdef,nameOut): # make same input as how we train the model
     # index question  sentence  go1 go2 label
