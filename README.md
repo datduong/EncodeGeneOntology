@@ -33,9 +33,9 @@ We embed the [definition or position](https://www.ebi.ac.uk/QuickGO/term/GO:0075
 
 All models are already trained, and ready to be used. **[You can download the embeddings here.](https://drive.google.com/drive/folders/129UObLlhnp0RK6MQAS7waUF-k4SuGV-u?usp=sharing)** There are different types of embeddings, you can try any of these embeddings. For example, [download these files](https://drive.google.com/drive/u/1/folders/1xYLoO1PxQfAceCF-tTeDeWliEjoH8Hil) if you want to use the BiLSTM embedding for Task 1 and 2 discussed in our paper. 
 
-You can also use our trained model to produce vectors for any GO definitions, **[see example script here](https://github.com/datduong/EncodeGeneOntology/blob/master/DemoScript/TrainWriteGoDef.sh)**. You will have to prepare the **[go.obo definition input in this format here](https://drive.google.com/drive/u/1/folders/1-nmtdjG8yNiNi2dyb_nFZlYmPetiBqVV)**. 
+You can also use our trained model to produce vectors for any GO definitions, **[see example script here](https://github.com/datduong/EncodeGeneOntology/blob/master/DemoScript)**. You will have to prepare the **[go.obo definition input in this format here](https://drive.google.com/drive/u/1/folders/1-nmtdjG8yNiNi2dyb_nFZlYmPetiBqVV)**. 
 
-Alternatively, you can also train your own embedding by **[following the same example script](https://github.com/datduong/EncodeGeneOntology/blob/master/DemoScript/TrainWriteGoDef.sh)**. You only need to prepare your **[train/dev/test datasets into the same format here](https://drive.google.com/drive/folders/1DITbTYg_49lpDu_RmHzY5WVTG7Acp_7B?usp=sharing)**.
+Alternatively, you can also train your own embedding by **[following the same example script](https://github.com/datduong/EncodeGeneOntology/blob/master/DemoScript)**. You only need to prepare your **[train/dev/test datasets into the same format here](https://drive.google.com/drive/folders/1DITbTYg_49lpDu_RmHzY5WVTG7Acp_7B?usp=sharing)**.
 
 
 ## Applications for Definition and Position encoders
@@ -48,6 +48,8 @@ Once you can express each GO term as a vector, then for any 2 proteins, you can 
 ### Predict GO labels based on protein sequences
 
 We can use [Uniprot database](https://www.uniprot.org/uniprot/?query=*&fil=organism%3A%22Homo+sapiens+%28Human%29+%5B9606%5D%22+AND+reviewed%3Ayes) to train a model that predicts GO labels for an unknown protein sequence. 
+
+We show in our paper that GO embeddings can be used to predict GO terms not included in the training data (zeroshot learning). 
 
 
 
