@@ -48,8 +48,8 @@ Once you can express each GO term as a vector, then for any 2 proteins, you can 
 ### Predict GO labels based on protein sequences
 
 We can use [Uniprot database](https://www.uniprot.org/uniprot/?query=*&fil=organism%3A%22Homo+sapiens+%28Human%29+%5B9606%5D%22+AND+reviewed%3Ayes) to train a model that predicts GO labels for an unknown protein sequence. 
-
-We show in our paper that GO embeddings can be used to predict GO terms not included in the training data (zeroshot learning). 
+In our paper, we demonstrate that GO embeddings can be used to predict GO labels not included in the training data (zeroshot learning). 
+There are two advantages. First, many machine learning methods exclude rare labels because these methods often have problem when training data contains very rare labels. GO embeddings allow us to adopt the zeroshot learning philosophy, where we train models on labels in training data, but test models on new unseen labels. Second, as the GO database is constantly updating with new terms, we do not need to train a brand new model with each update. 
 
 
 
