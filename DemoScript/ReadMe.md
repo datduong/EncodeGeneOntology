@@ -1,0 +1,14 @@
+
+
+### Demo scripts
+
+In this folder, we provide shell scripts to demonstrate how to run BERT and BiLSTM. 
+
+1. To run BERT, you need to do 2 steps. In Phase 1, you need to fine-tune the pretrained Google BERT on the Gene Ontology which has 2 objectives (1) masked language model and (2) next sentence prediction. Observe that the model will not specifically made to produce a GO embeddings. You can download our already trained model here, otherwise you can follow the script here. In Phase 2, you continue to train the model to specifically produce GO embeddings. For Phase 2, we have the following scripts
+  1. (BERT as-a-service)[https://github.com/auppunda/GeneOntologyEncoders/blob/master/BertAsAService/GetVecFile.sh]
+  2. (BERT Layer 12.)[https://github.com/datduong/EncodeGeneOntology/tree/master/DemoScript] 
+
+2. (BiLSTM.)[https://github.com/datduong/EncodeGeneOntology/tree/master/DemoScript]
+
+3. ELMO on Gene Ontology is (found here)[https://github.com/auppunda/GeneOntologyEncoders/tree/master/Elmo/encoder]
+
