@@ -261,8 +261,8 @@ if args.model_choice == 'DeepGOFlatSeqProtHwayNotUseGo': ##!! show that we need 
 if args.model_choice == 'DeepGOFlatSeqProtHwayGoNotUsePPI':
   prot2seq_model = ProtSeq2GOModel.DeepGOFlatSeqProtHwayGoNotUsePPI (ProtEncoder, GOEncoder, args, **other_params)
 
-if args.model_choice == 'DeepGOTreeSeqProtHwayGo':
-  prot2seq_model = ProtSeq2GOModel.DeepGOTreeSeqProtHwayGo (ProtEncoder, GOEncoder, args, **other_params)
+# if args.model_choice == 'DeepGOTreeSeqProtHwayGo':
+#   prot2seq_model = ProtSeq2GOModel.DeepGOTreeSeqProtHwayGo (ProtEncoder, GOEncoder, args, **other_params)
 
 if args.model_choice == 'DeepGOFlatSeqProtConcatGo': ##!! concat go vector using pointwise style
   prot2seq_model = ProtSeq2GOModel.DeepGOFlatSeqProtConcatGo (ProtEncoder, GOEncoder, args, **other_params)
