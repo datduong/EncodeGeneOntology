@@ -1,17 +1,18 @@
 
 
 #### run on 'have seen vs unseen' when we expand the dataset
-codepath='/local/datdb/GOmultitask/EvaluateLabelType'
+codepath='/local/datdb/EncodeGeneOntology/EvaluateLabelType'
 output='/local/datdb/deepgo/data/train/fold_1/'
 folder='/local/datdb/deepgo/data/train/fold_1/'
 # GCN Onto2vec BertGOName BiLSTM Bertd11d12 BertAve12 ELMO ELMONotNormalize
 # UniformGOVector BertCLS12 BertAsService 
-for model in UniformGOVector ; do 
+for model in GCN Onto2vec BertGOName BiLSTM Bertd11d12 BertAve12 ; do 
   run_model='DeepGOFlatSeqConcatGo'
   cd $codepath
   model_path=$folder$run_model$model
   # test-"+onto+"-same-origin.pickle"
-  python3 $codepath/EvalLabelUnseen.py $output $model_path/NotNormalizeSgd0.00010.001 'b32lr0.0001RMSprop' > $output/$run_model$model.NotNormalize16Jan20Run4.txt
+  # UniformGOVector NotNormalizeSgd0.00010.001 b32lr0.0001RMSprop
+  python3 $codepath/EvalLabelUnseen.py $output $model_path/NotNormalize 'b32lr0.0005RMSprop' > $output/$run_model$model.EvalUnseen.Jul4.txt #.NotNormalize16Jan20Run4.txt
 done
 cd $output
 
@@ -29,7 +30,7 @@ done
 
 
 #### run on split by quantile counts
-codepath='/local/datdb/GOmultitask/EvaluateLabelType'
+codepath='/local/datdb/EncodeGeneOntology/EvaluateLabelType'
 output='/local/datdb/deepgo/data/train/fold_1/'
 run_model='DeepGOFlatSeqProtHwayGoNotUsePPI' #
 folder='/local/datdb/deepgo/data/train/fold_1/'$run_model
@@ -41,7 +42,7 @@ done
 
 
 #### run on split by quantile counts ... BASEline
-codepath='/local/datdb/GOmultitask/EvaluateLabelType'
+codepath='/local/datdb/EncodeGeneOntology/EvaluateLabelType'
 output='/local/datdb/deepgo/dataExpandGoSet16Jan2020/train/fold_1/'
 folder='/local/datdb/deepgo/dataExpandGoSet16Jan2020/train/fold_1/'
 # GCN Onto2vec BertGOName BiLSTM Bertd11d12 BertAve12 
